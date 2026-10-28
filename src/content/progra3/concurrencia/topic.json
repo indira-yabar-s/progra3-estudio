@@ -1,0 +1,482 @@
+{
+  "id": "concurrencia",
+  "course": "progra3",
+  "title": "Concurrencia",
+  "description": "Del modelo de memoria compartida a promise/future: todo lo necesario para la parte de concurrencia de Programación III.",
+  "lessons": ["modelos", "hilos", "mutex", "condition-variable", "mensajeria"],
+  "exam": {
+    "id": "simulacro-concurrencia",
+    "title": "Mini simulacro de concurrencia",
+    "questions": [
+      {
+        "id": "sim-1",
+        "type": "concept",
+        "prompt": "¿Cuál es la diferencia principal entre un proceso y un hilo?",
+        "options": [
+          {
+            "text": "Los hilos de un proceso comparten memoria (globales y heap); los procesos tienen memoria separada.",
+            "correct": true,
+            "why": "Correcto: por eso los hilos se comunican fácil… y también pueden pisarse."
+          },
+          {
+            "text": "Los procesos son más livianos que los hilos.",
+            "correct": false,
+            "why": "Es al revés: crear un hilo es más barato que crear un proceso."
+          },
+          {
+            "text": "Un hilo puede contener varios procesos.",
+            "correct": false,
+            "why": "Es al revés: un proceso contiene uno o más hilos."
+          },
+          {
+            "text": "No hay diferencia en C++.",
+            "correct": false,
+            "why": "Sí la hay: std::thread crea hilos dentro del mismo proceso."
+          }
+        ]
+      },
+      {
+        "id": "sim-2",
+        "type": "predict",
+        "prompt": "¿Cuántas veces se imprime \"hola\"?",
+        "code": "auto f = [] { std::cout << \"hola\\n\"; };\nstd::thread t1(f), t2(f);\nf();\nt1.join(); t2.join();",
+        "options": [
+          {
+            "text": "1",
+            "correct": false,
+            "why": "Hay dos hilos más el main."
+          },
+          {
+            "text": "2",
+            "correct": false,
+            "why": "main también imprime una vez."
+          },
+          {
+            "text": "Depende de la intercalación.",
+            "correct": false,
+            "why": "El ORDEN depende de la intercalación, pero la cantidad no: los tres terminan gracias a join."
+          },
+          {
+            "text": "3",
+            "correct": true,
+            "why": "Correcto: t1, t2 y main imprimen cada uno una vez (en orden no determinista)."
+          }
+        ]
+      },
+      {
+        "id": "sim-3",
+        "type": "bug",
+        "prompt": "¿Qué sucede al ejecutar este main?",
+        "code": "int main() {\n    std::thread t([] { std::cout << 5; });\n    return 0;\n}",
+        "options": [
+          {
+            "text": "std::terminate: t se destruye siendo joinable.",
+            "correct": true,
+            "why": "Correcto. Falta t.join() o t.detach() antes de salir del ámbito."
+          },
+          {
+            "text": "Imprime 5 y termina normalmente.",
+            "correct": false,
+            "why": "El hilo nunca se une ni se separa."
+          },
+          {
+            "text": "Deadlock.",
+            "correct": false,
+            "why": "No hay mutex ni esperas mutuas."
+          },
+          {
+            "text": "Error de compilación.",
+            "correct": false,
+            "why": "Compila; el error es en tiempo de ejecución."
+          }
+        ]
+      },
+      {
+        "id": "sim-4",
+        "type": "concept",
+        "prompt": "Una **data race** ocurre cuando…",
+        "options": [
+          {
+            "text": "dos hilos leen la misma variable a la vez.",
+            "correct": false,
+            "why": "Las lecturas concurrentes son seguras."
+          },
+          {
+            "text": "un hilo termina antes que otro.",
+            "correct": false,
+            "why": "Eso es normal y no es un error."
+          },
+          {
+            "text": "dos hilos acceden a la misma variable, al menos uno escribe, y no hay sincronización (happens-before) entre los accesos.",
+            "correct": true,
+            "why": "Definición exacta. En C++ es comportamiento indefinido."
+          },
+          {
+            "text": "se usan más hilos que núcleos.",
+            "correct": false,
+            "why": "Eso solo implica que se turnan en la CPU."
+          }
+        ]
+      },
+      {
+        "id": "sim-5",
+        "type": "predict",
+        "prompt": "Dos hilos ejecutan `contador++` 3 veces cada uno, **sin mutex**, con `contador` iniciado en 0. ¿Cuál es el menor valor final posible?",
+        "options": [
+          {
+            "text": "6",
+            "correct": false,
+            "why": "6 es el valor si nunca se pierde un incremento, pero puede perderse."
+          },
+          {
+            "text": "2",
+            "correct": true,
+            "why": "Correcto (resultado clásico): t1 lee 0, t2 hace 2 incrementos (2), t1 escribe 1, t2 lee 1, t1 hace sus otros 2 (3), t2 escribe 2."
+          },
+          {
+            "text": "3",
+            "correct": false,
+            "why": "Parece el mínimo intuitivo, pero intercalaciones más raras pierden aún más."
+          },
+          {
+            "text": "0",
+            "correct": false,
+            "why": "Al menos la última escritura deja un valor ≥ 1… de hecho el mínimo es 2."
+          }
+        ]
+      },
+      {
+        "id": "sim-6",
+        "type": "complete",
+        "prompt": "Completa para proteger el acceso usando RAII:",
+        "code": "std::mutex m;\nstd::vector<int> v;\n\nvoid agregar(int x) {\n    ______________________\n    v.push_back(x);\n}",
+        "options": [
+          {
+            "text": "std::lock(m);",
+            "correct": false,
+            "why": "std::lock necesita al menos dos mutex y no los libera solo."
+          },
+          {
+            "text": "m.lock();",
+            "correct": false,
+            "why": "Sin m.unlock() el mutex quedaría tomado para siempre."
+          },
+          {
+            "text": "std::mutex g(m);",
+            "correct": false,
+            "why": "std::mutex no se construye a partir de otro mutex (ni se puede copiar)."
+          },
+          {
+            "text": "std::lock_guard<std::mutex> g(m);",
+            "correct": true,
+            "why": "Toma m al construirse y lo suelta al salir de la función."
+          }
+        ]
+      },
+      {
+        "id": "sim-7",
+        "type": "concept",
+        "prompt": "¿Qué necesitas para usar `condition_variable::wait`?",
+        "options": [
+          {
+            "text": "Un std::lock_guard.",
+            "correct": false,
+            "why": "lock_guard no se puede soltar; wait necesita soltar el mutex mientras duerme."
+          },
+          {
+            "text": "Nada, wait funciona sin mutex.",
+            "correct": false,
+            "why": "Sin mutex habría races en la condición y notificaciones perdidas."
+          },
+          {
+            "text": "Un std::unique_lock<std::mutex> tomado.",
+            "correct": true,
+            "why": "Correcto: wait lo suelta al dormir y lo retoma al despertar."
+          },
+          {
+            "text": "Un std::future.",
+            "correct": false,
+            "why": "Ese es otro mecanismo de comunicación."
+          }
+        ]
+      },
+      {
+        "id": "sim-8",
+        "type": "bug",
+        "prompt": "¿Cuál es el bug?",
+        "code": "std::unique_lock<std::mutex> lk(m);\nif (q.empty()) cv.wait(lk);\nint x = q.front();\nq.pop();",
+        "options": [
+          {
+            "text": "Falta notify_all en el consumidor.",
+            "correct": false,
+            "why": "El consumidor no necesita notificar en este fragmento."
+          },
+          {
+            "text": "Usar if en lugar de while/predicado: con un despertar espurio continúa con la cola vacía.",
+            "correct": true,
+            "why": "Correcto. Debe ser cv.wait(lk, []{ return !q.empty(); }); o while (q.empty()) cv.wait(lk);"
+          },
+          {
+            "text": "unique_lock no puede usarse con colas.",
+            "correct": false,
+            "why": "El tipo de dato protegido no importa."
+          },
+          {
+            "text": "q.front() es una data race aunque haya mutex.",
+            "correct": false,
+            "why": "Está bajo el mutex; el problema es que la cola puede estar vacía."
+          }
+        ]
+      },
+      {
+        "id": "sim-9",
+        "type": "concept",
+        "prompt": "¿Cuál NO es una de las cuatro condiciones de Coffman para el deadlock?",
+        "options": [
+          {
+            "text": "Exclusión mutua.",
+            "correct": false,
+            "why": "Sí es una condición."
+          },
+          {
+            "text": "Espera circular.",
+            "correct": false,
+            "why": "Sí es una condición."
+          },
+          {
+            "text": "Inanición (starvation).",
+            "correct": true,
+            "why": "Correcto: la inanición es otro problema (un hilo nunca obtiene turno), no una condición de Coffman."
+          },
+          {
+            "text": "Retener y esperar.",
+            "correct": false,
+            "why": "Sí es una condición (junto con no expropiación)."
+          }
+        ]
+      },
+      {
+        "id": "sim-10",
+        "type": "predict",
+        "prompt": "¿Qué hace este código?",
+        "code": "std::mutex a, b;\nstd::thread t1([&] { std::scoped_lock lk(a, b); });\nstd::thread t2([&] { std::scoped_lock lk(b, a); });\nt1.join(); t2.join();",
+        "options": [
+          {
+            "text": "Siempre termina: scoped_lock evita el deadlock aunque el orden sea distinto.",
+            "correct": true,
+            "why": "Correcto: std::scoped_lock usa un algoritmo que toma todos o ninguno."
+          },
+          {
+            "text": "Puede tener deadlock por el orden inverso.",
+            "correct": false,
+            "why": "Con lock_guard separados sí; con scoped_lock no."
+          },
+          {
+            "text": "No compila porque scoped_lock necesita template.",
+            "correct": false,
+            "why": "En C++17 la deducción de plantillas (CTAD) permite omitirlo."
+          },
+          {
+            "text": "Solo bloquea el primer mutex.",
+            "correct": false,
+            "why": "Bloquea todos los que se le pasan."
+          }
+        ]
+      },
+      {
+        "id": "sim-11",
+        "type": "concept",
+        "prompt": "¿Para qué sirve `std::shared_future`?",
+        "options": [
+          {
+            "text": "Para compartir un mutex entre hilos.",
+            "correct": false,
+            "why": "Los mutex ya se comparten; no tiene relación."
+          },
+          {
+            "text": "Para que varios hilos puedan leer (get) el mismo resultado.",
+            "correct": true,
+            "why": "Correcto: un future normal solo admite un get()."
+          },
+          {
+            "text": "Para que una promise acepte varios set_value.",
+            "correct": false,
+            "why": "Una promise solo se satisface una vez."
+          },
+          {
+            "text": "Para lanzar varios hilos a la vez.",
+            "correct": false,
+            "why": "No crea hilos: solo comparte un resultado."
+          }
+        ]
+      },
+      {
+        "id": "sim-12",
+        "type": "predict",
+        "prompt": "¿En qué hilo se ejecuta `trabajo()`?",
+        "code": "auto f = std::async(std::launch::deferred, trabajo);\nhacer_otra_cosa();\nint r = f.get();",
+        "options": [
+          {
+            "text": "En un hilo nuevo, apenas se llama a async.",
+            "correct": false,
+            "why": "Eso sería launch::async."
+          },
+          {
+            "text": "En un hilo del sistema al terminar main.",
+            "correct": false,
+            "why": "No hay ejecución diferida al final del programa."
+          },
+          {
+            "text": "Nunca se ejecuta.",
+            "correct": false,
+            "why": "Se ejecuta porque se llama a f.get()."
+          },
+          {
+            "text": "En el hilo de main, cuando se llama a f.get().",
+            "correct": true,
+            "why": "Correcto: deferred es evaluación perezosa en el hilo que hace get/wait."
+          }
+        ]
+      },
+      {
+        "id": "sim-13",
+        "type": "bug",
+        "prompt": "¿Por qué este código no gana nada de paralelismo?",
+        "code": "std::async(std::launch::async, tarea_a);\nstd::async(std::launch::async, tarea_b);",
+        "options": [
+          {
+            "text": "Porque tarea_a y tarea_b se ejecutan deferred.",
+            "correct": false,
+            "why": "La política es launch::async explícitamente."
+          },
+          {
+            "text": "Porque launch::async no crea hilos.",
+            "correct": false,
+            "why": "Sí los crea; el problema es el destructor del temporal."
+          },
+          {
+            "text": "Porque falta join.",
+            "correct": false,
+            "why": "Con async no se hace join: el future se encarga."
+          },
+          {
+            "text": "Porque cada future temporal se destruye en su línea y su destructor espera a que termine la tarea.",
+            "correct": true,
+            "why": "Correcto: las tareas quedan secuenciales. Hay que guardar los futures en variables."
+          }
+        ]
+      },
+      {
+        "id": "sim-14",
+        "type": "concept",
+        "prompt": "¿Qué técnica resuelve la cena de los filósofos sin deadlock?",
+        "options": [
+          {
+            "text": "Numerar los tenedores y que cada filósofo tome primero el de menor número.",
+            "correct": true,
+            "why": "Correcto: orden global de recursos, rompe la espera circular."
+          },
+          {
+            "text": "Que todos tomen primero el tenedor izquierdo.",
+            "correct": false,
+            "why": "Eso es justamente lo que produce el ciclo."
+          },
+          {
+            "text": "Que cada filósofo haga detach.",
+            "correct": false,
+            "why": "detach no cambia el orden de los locks."
+          },
+          {
+            "text": "Agregar más filósofos.",
+            "correct": false,
+            "why": "Más filósofos con la misma regla mantiene el ciclo."
+          }
+        ]
+      },
+      {
+        "id": "sim-15",
+        "type": "predict",
+        "prompt": "Telar verifica este programa. ¿Qué reporta?",
+        "code": "int total = 0;\nmutex m;\nthread t1 { lock_guard<mutex> g(m); total++; }\nthread t2 { lock_guard<mutex> g(m); total++; }\nassert(total == 2);",
+        "options": [
+          {
+            "text": "Data race en total.",
+            "correct": false,
+            "why": "Todos los accesos a total están bajo el mismo mutex: hay happens-before."
+          },
+          {
+            "text": "Deadlock.",
+            "correct": false,
+            "why": "Ambos hilos solo usan un mutex y lo sueltan."
+          },
+          {
+            "text": "Sin errores: total siempre termina en 2.",
+            "correct": true,
+            "why": "Correcto: exclusión mutua con un solo mutex, sin ciclos ni races."
+          },
+          {
+            "text": "Resultados no deterministas: 1 o 2.",
+            "correct": false,
+            "why": "El mutex hace que ningún incremento se pierda."
+          }
+        ]
+      }
+    ]
+  },
+  "review": {
+    "cheatsheet": [
+      {
+        "tool": "std::thread t(f, args...)",
+        "use": "Crear un hilo que ejecuta f.",
+        "careful": "join() o detach() antes de destruirlo."
+      },
+      {
+        "tool": "t.join() / t.detach()",
+        "use": "Esperar a que termine / soltarlo.",
+        "careful": "detach + referencias a locales = UB."
+      },
+      {
+        "tool": "std::mutex",
+        "use": "Exclusión mutua en una sección crítica.",
+        "careful": "lock sin unlock en algún camino = bloqueo eterno."
+      },
+      {
+        "tool": "std::lock_guard<std::mutex>",
+        "use": "RAII: bloquea todo el bloque.",
+        "careful": "No se puede soltar antes ni usar con wait."
+      },
+      {
+        "tool": "std::unique_lock<std::mutex>",
+        "use": "RAII flexible: unlock/lock manual, movible.",
+        "careful": "Necesario para condition_variable::wait."
+      },
+      {
+        "tool": "std::scoped_lock lk(a, b)",
+        "use": "Varios mutex a la vez sin deadlock (C++17).",
+        "careful": "Para un solo mutex basta lock_guard."
+      },
+      {
+        "tool": "std::condition_variable",
+        "use": "Dormir hasta que otro hilo avise.",
+        "careful": "Siempre con predicado: cv.wait(lk, pred)."
+      },
+      {
+        "tool": "std::promise / std::future",
+        "use": "Enviar un valor una vez entre hilos.",
+        "careful": "get() una sola vez; promise se mueve, no se copia."
+      },
+      {
+        "tool": "std::async(policy, f)",
+        "use": "Ejecutar f y obtener su future.",
+        "careful": "async = hilo nuevo ya; deferred = en get(). Guarda el future."
+      }
+    ],
+    "pitfalls": [
+      "counter++ compartido sin mutex/atomic → se pierden incrementos.",
+      "Dos mutex tomados en orden distinto por dos hilos → deadlock.",
+      "wait sin predicado → notificación perdida o despertar espurio.",
+      "return o excepción entre lock() y unlock() → mutex tomado para siempre (usa RAII).",
+      "Verificar y luego actuar en dos secciones críticas separadas (check-then-act) → bug sin data race."
+    ]
+  }
+}

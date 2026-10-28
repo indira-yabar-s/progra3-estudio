@@ -1,0 +1,49 @@
+{
+  "id": "progra3",
+  "title": "Programación III",
+  "institution": "UTEC",
+  "topics": [
+    {
+      "id": "concurrencia",
+      "title": "Concurrencia",
+      "description": "Hilos, condiciones de carrera, mutex, deadlock, condition_variable, promise/future y std::async.",
+      "status": "available",
+      "icon": "workflow"
+    },
+    {
+      "id": "big-o",
+      "title": "Análisis de algoritmos (Big O)",
+      "description": "Notación asintótica, mejor/peor caso, análisis de bucles y recursión.",
+      "status": "soon",
+      "icon": "gauge"
+    },
+    {
+      "id": "patrones",
+      "title": "Patrones de diseño",
+      "description": "Singleton, Factory, Observer, Strategy, Adapter, Decorator…",
+      "status": "soon",
+      "icon": "puzzle"
+    },
+    {
+      "id": "estructuras",
+      "title": "Estructuras de datos",
+      "description": "Stack, queue, heap, árboles, hash tables y BST.",
+      "status": "soon",
+      "icon": "layers"
+    },
+    {
+      "id": "grafos",
+      "title": "Grafos",
+      "description": "BFS, DFS, Prim, Kruskal, Dijkstra y Floyd–Warshall.",
+      "status": "soon",
+      "icon": "git-fork"
+    },
+    {
+      "id": "poo",
+      "title": "POO y programación genérica",
+      "description": "Clases, herencia, polimorfismo, templates y conceptos.",
+      "status": "soon",
+      "icon": "box"
+    }
+  ]
+}

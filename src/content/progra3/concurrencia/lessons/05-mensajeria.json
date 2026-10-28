@@ -1,0 +1,203 @@
+{
+  "id": "mensajeria",
+  "number": 5,
+  "title": "Mensajería entre hilos: promise, future y std::async",
+  "subtitle": "Pasar resultados sin compartir variables",
+  "minutes": 25,
+  "telarExample": "promise-future",
+  "sections": [
+    {
+      "type": "text",
+      "md": "Hasta ahora los hilos se comunicaban escribiendo en variables compartidas protegidas por mutex. C++ ofrece otra forma, más cercana al **paso de mensajes**: un canal de **un solo uso** para enviar **un valor** (o una excepción) de un hilo a otro."
+    },
+    {
+      "type": "analogy",
+      "emoji": "🎫",
+      "title": "promise y future: el ticket del restaurante de comida rápida",
+      "md": "Pides una hamburguesa y te dan un **ticket con un número** (el `future`). La cocina se queda con la **promesa** de entregarla (el `promise`). Puedes irte a buscar mesa; cuando quieres comer, vas al mostrador y **esperas** con tu ticket (`get()`). Cuando la cocina cumple (`set_value`), te entregan la hamburguesa. El ticket **solo se canjea una vez**."
+    },
+    {
+      "type": "code",
+      "title": "promise y future",
+      "code": "#include <future>\n#include <iostream>\n#include <thread>\n\nvoid calcular(std::promise<int> p) {          // recibe la promesa (se mueve, no se copia)\n    int resultado = 6 * 7;                    // trabajo \"pesado\"\n    p.set_value(resultado);                   // cumple la promesa: envía el valor\n}\n\nint main() {\n    std::promise<int> p;                      // extremo que ESCRIBE\n    std::future<int> f = p.get_future();      // extremo que LEE (se obtiene una sola vez)\n\n    std::thread t(calcular, std::move(p));    // promise no se puede copiar: se mueve\n\n    std::cout << \"esperando...\\n\";\n    int v = f.get();                          // bloquea hasta que haya valor; solo 1 vez\n    std::cout << \"resultado: \" << v << '\\n';  // 42\n\n    t.join();\n}",
+      "explain": "Además del valor, `get()` crea una relación **happens-before**: todo lo que el hilo hizo antes de `set_value` es visible para quien hace `get`. Por eso no hace falta un mutex para leer `v`."
+    },
+    {
+      "type": "callout",
+      "variant": "warning",
+      "md": "- `f.get()` solo se puede llamar **una vez**; la segunda lanza `std::future_error`. Si varios hilos necesitan el valor usa `std::shared_future`.\n- Llamar a `set_value` dos veces lanza `std::future_error` (*promise_already_satisfied*).\n- Si el `promise` se destruye sin `set_value`, `get()` lanza *broken_promise*.\n- Si el hilo falla, puede enviar la excepción con `p.set_exception(std::current_exception())`: `get()` la relanza."
+    },
+    {
+      "type": "text",
+      "md": "### std::async: el atajo\nCrear el `promise`, el `thread` y el `join` a mano es mucho trabajo. `std::async` lo hace por ti: ejecuta una función y te devuelve directamente su `future`."
+    },
+    {
+      "type": "code",
+      "title": "std::async con sus dos políticas",
+      "code": "#include <future>\n#include <iostream>\n\nint cuadrado(int x) { return x * x; }\n\nint main() {\n    // launch::async: se ejecuta YA, en un hilo nuevo (paralelo a main).\n    std::future<int> a = std::async(std::launch::async, cuadrado, 5);\n\n    // launch::deferred: NO crea hilo. Se ejecuta en el hilo que llame a get(),\n    // recién en ese momento (evaluación perezosa).\n    std::future<int> d = std::async(std::launch::deferred, cuadrado, 6);\n\n    // Sin política: la implementación elige async o deferred.\n    std::future<int> x = std::async(cuadrado, 7);\n\n    std::cout << a.get() << '\\n';   // 25 (probablemente ya estaba calculado)\n    std::cout << d.get() << '\\n';   // 36 (se calcula AHORA, en el hilo de main)\n    std::cout << x.get() << '\\n';   // 49\n}"
+    },
+    {
+      "type": "analogy",
+      "emoji": "📦",
+      "title": "async vs. deferred: delivery vs. recoger en tienda",
+      "md": "`launch::async` es pedir **delivery**: la cocina empieza ya, en paralelo a lo que tú hagas, y cuando abres la puerta (`get`) probablemente ya está.\n\n`launch::deferred` es **recoger en tienda con pago al llegar**: nadie cocina nada hasta que tú llegas al mostrador (`get`) y entonces lo preparan delante tuyo, con tu tiempo. Si nunca vas, nunca se cocina."
+    },
+    {
+      "type": "callout",
+      "variant": "warning",
+      "md": "El `future` que devuelve `std::async(std::launch::async, ...)` **espera en su destructor** a que termine la tarea. Por eso `std::async(std::launch::async, tarea);` sin guardar el future se comporta **sin paralelismo**: el temporal se destruye en esa misma línea y bloquea hasta que la tarea termina."
+    },
+    {
+      "type": "callout",
+      "variant": "exam",
+      "md": "Resumen para el examen: **async** = hilo nuevo, empieza inmediatamente. **deferred** = sin hilo nuevo, corre en el hilo que llama a `get()`/`wait()`, y solo si se llama. Por defecto (`async | deferred`) decide la implementación."
+    }
+  ],
+  "quiz": [
+    {
+      "id": "msg-1",
+      "type": "predict",
+      "prompt": "¿Qué imprime este programa?",
+      "code": "std::promise<int> p;\nstd::future<int> f = p.get_future();\nstd::thread t([&p] { p.set_value(10); });\nstd::cout << f.get() + f.get();\nt.join();",
+      "options": [
+        {
+          "text": "20",
+          "correct": false,
+          "why": "get() solo puede llamarse una vez: el segundo get no devuelve 10 otra vez."
+        },
+        {
+          "text": "10",
+          "correct": false,
+          "why": "El primer get devuelve 10, pero el segundo no devuelve 0: lanza una excepción."
+        },
+        {
+          "text": "Lanza std::future_error en el segundo get().",
+          "correct": true,
+          "why": "Correcto. El future queda inválido tras el primer get(). Para leer varias veces usa shared_future o guarda el valor en una variable."
+        },
+        {
+          "text": "Se queda bloqueado para siempre.",
+          "correct": false,
+          "why": "set_value sí se ejecuta, así que el primer get retorna."
+        }
+      ]
+    },
+    {
+      "id": "msg-2",
+      "type": "concept",
+      "prompt": "Con `std::launch::deferred`, ¿cuándo y dónde se ejecuta la función?",
+      "options": [
+        {
+          "text": "Inmediatamente, en un hilo nuevo.",
+          "correct": false,
+          "why": "Eso describe a launch::async."
+        },
+        {
+          "text": "Al terminar main.",
+          "correct": false,
+          "why": "No hay ejecución automática al final del programa."
+        },
+        {
+          "text": "En un hilo del sistema operativo elegido al azar.",
+          "correct": false,
+          "why": "No crea ni elige ningún otro hilo."
+        },
+        {
+          "text": "Recién cuando se llama a get() o wait(), en el hilo que hace esa llamada.",
+          "correct": true,
+          "why": "Correcto: es evaluación perezosa y sin hilo nuevo. Si nunca se llama a get/wait, la función no se ejecuta."
+        }
+      ]
+    },
+    {
+      "id": "msg-3",
+      "type": "bug",
+      "prompt": "Este código no compila. ¿Por qué?",
+      "code": "void tarea(std::promise<int> p) { p.set_value(1); }\n\nstd::promise<int> p;\nstd::future<int> f = p.get_future();\nstd::thread t(tarea, p);",
+      "options": [
+        {
+          "text": "Porque falta llamar a f.get() antes de crear el hilo.",
+          "correct": false,
+          "why": "El orden de get no afecta la compilación (y llamar get antes bloquearía para siempre)."
+        },
+        {
+          "text": "Porque std::promise no se puede copiar; hay que pasarlo con std::move(p).",
+          "correct": true,
+          "why": "Correcto. promise es move-only (como unique_ptr): std::thread t(tarea, std::move(p));"
+        },
+        {
+          "text": "Porque tarea debería devolver int.",
+          "correct": false,
+          "why": "La función entrega el valor mediante set_value; puede ser void."
+        },
+        {
+          "text": "Porque los future no se pueden usar con std::thread.",
+          "correct": false,
+          "why": "Sí se pueden; es el uso típico de promise/future."
+        }
+      ]
+    },
+    {
+      "id": "msg-4",
+      "type": "complete",
+      "prompt": "Completa para calcular `fib(40)` **en paralelo** a `otra_cosa()` y luego usar el resultado:",
+      "code": "______________________________________\notra_cosa();\nstd::cout << r.get();",
+      "options": [
+        {
+          "text": "auto r = fib(40);",
+          "correct": false,
+          "why": "Es secuencial y r sería un int: no tiene método get()."
+        },
+        {
+          "text": "auto r = std::async(std::launch::deferred, fib, 40);",
+          "correct": false,
+          "why": "Con deferred, fib(40) recién se calcularía en r.get(), después de otra_cosa(): no hay paralelismo."
+        },
+        {
+          "text": "std::async(std::launch::async, fib, 40);",
+          "correct": false,
+          "why": "No guarda el future (no existiría r) y el temporal bloquearía en su destructor en esa misma línea."
+        },
+        {
+          "text": "auto r = std::async(std::launch::async, fib, 40);",
+          "correct": true,
+          "why": "launch::async garantiza un hilo nuevo que empieza ya; mientras tanto main ejecuta otra_cosa()."
+        }
+      ]
+    },
+    {
+      "id": "msg-5",
+      "type": "concept",
+      "prompt": "¿Qué garantiza `f.get()` además de devolver el valor?",
+      "options": [
+        {
+          "text": "Que el hilo productor ya terminó por completo (como join).",
+          "correct": false,
+          "why": "Solo garantiza que se llamó a set_value; el hilo puede seguir haciendo otras cosas después."
+        },
+        {
+          "text": "Que el valor se copió a una variable global.",
+          "correct": false,
+          "why": "El valor se devuelve a quien llama a get; no hay globales implicadas."
+        },
+        {
+          "text": "Una relación happens-before: lo que el productor hizo antes de set_value es visible tras get.",
+          "correct": true,
+          "why": "Correcto. Es una sincronización: por eso Telar no reporta race en el ejemplo promise/future."
+        },
+        {
+          "text": "Nada más: es solo una lectura.",
+          "correct": false,
+          "why": "También sincroniza memoria entre los dos hilos."
+        }
+      ]
+    }
+  ],
+  "remember": [
+    "promise = extremo que escribe (set_value una vez); future = extremo que lee (get una vez, bloquea).",
+    "promise no se copia: se pasa con std::move. Para varios lectores: std::shared_future.",
+    "set_value → get crea happens-before: no hace falta mutex para el valor entregado.",
+    "std::async(launch::async, f) = hilo nuevo inmediato; launch::deferred = corre en get()/wait(), en el hilo que llama.",
+    "El future de async espera en su destructor: guarda el future si quieres paralelismo real."
+  ]
+}

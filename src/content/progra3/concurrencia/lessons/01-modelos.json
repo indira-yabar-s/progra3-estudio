@@ -1,0 +1,203 @@
+{
+  "id": "modelos",
+  "number": 1,
+  "title": "Modelos de programación concurrente",
+  "subtitle": "Memoria compartida, mensajería y paralelismo",
+  "minutes": 15,
+  "telarExample": "independientes",
+  "sections": [
+    {
+      "type": "text",
+      "md": "Un programa **secuencial** hace una cosa después de otra. Un programa **concurrente** tiene varias tareas *en progreso al mismo tiempo*. Antes de escribir código conviene entender **cómo se comunican** esas tareas, porque de eso dependen casi todos los bugs que veremos en el curso."
+    },
+    {
+      "type": "analogy",
+      "emoji": "👩‍🍳",
+      "title": "Concurrencia vs. paralelismo: la cocina",
+      "md": "**Concurrencia** es *un* chef que pica cebolla, mueve la sartén, vuelve a la cebolla… Las tareas avanzan intercaladas, aunque en cada instante solo haga una.\n\n**Paralelismo** es tener *varios* chefs trabajando literalmente a la vez, cada uno con sus manos.\n\nConcurrencia es una forma de **organizar** el trabajo; paralelismo es una forma de **ejecutarlo**. Un programa concurrente puede correr en un solo núcleo (intercalando) o en varios (en paralelo)."
+    },
+    {
+      "type": "text",
+      "md": "### Proceso vs. hilo\n- Un **proceso** es un programa en ejecución con su **propia memoria**. Dos procesos no ven las variables del otro.\n- Un **hilo** (*thread*) vive **dentro** de un proceso. Todos los hilos de un proceso **comparten** la memoria global y el heap, pero cada uno tiene su **propia pila** (sus variables locales) y su propio contador de programa."
+    },
+    {
+      "type": "analogy",
+      "emoji": "📋",
+      "title": "Modelo 1 — Memoria compartida: la pizarra de la oficina",
+      "md": "Todos los empleados escriben y leen en **la misma pizarra**. Es rapidísimo comunicarse: basta con mirar. Pero si dos personas borran y escriben a la vez el mismo número, el resultado es basura. Por eso hace falta una regla: *solo quien tiene el plumón puede escribir* (eso será el **mutex**)."
+    },
+    {
+      "type": "analogy",
+      "emoji": "✉️",
+      "title": "Modelo 2 — Paso de mensajes: el buzón",
+      "md": "Nadie toca las cosas de otro. Si quieres algo, **envías un mensaje** y esperas la respuesta. Es más difícil equivocarse, porque no hay datos compartidos que se pisen; a cambio, copiar y enviar mensajes cuesta algo de tiempo. En C++ lo veremos con **promise/future** y `std::async`."
+    },
+    {
+      "type": "analogy",
+      "emoji": "📚",
+      "title": "Modelo 3 — Paralelismo de datos: corregir exámenes",
+      "md": "Hay 300 exámenes y 3 profesores. Cada uno corrige **su propio montón** de 100 y al final se suman las notas. Como cada profesor trabaja sobre datos distintos, **no necesitan coordinarse** hasta el final. Es el caso ideal: casi sin sincronización."
+    },
+    {
+      "type": "code",
+      "title": "Paralelismo de datos en C++17: sumar un vector en dos mitades",
+      "code": "#include <iostream>\n#include <numeric>   // std::accumulate\n#include <thread>    // std::thread\n#include <vector>\n\nint main() {\n    std::vector<int> datos(1'000'000, 1);      // un millón de unos\n    long long suma1 = 0, suma2 = 0;           // un resultado POR hilo: no se comparten\n\n    auto mitad = datos.begin() + datos.size() / 2;\n\n    // Hilo 1: suma la primera mitad. Captura por referencia [&] para escribir en suma1.\n    std::thread t1([&] { suma1 = std::accumulate(datos.begin(), mitad, 0LL); });\n    // Hilo 2: suma la segunda mitad en paralelo con t1.\n    std::thread t2([&] { suma2 = std::accumulate(mitad, datos.end(), 0LL); });\n\n    t1.join();   // esperamos a que t1 termine...\n    t2.join();   // ...y a que t2 termine, antes de leer sus resultados\n\n    std::cout << suma1 + suma2 << '\\n';   // 1000000: siempre el mismo resultado\n}",
+      "explain": "Cada hilo **lee** datos compartidos (`datos`) pero **escribe** en su propia variable. Leer a la vez no es peligroso; lo peligroso es que alguien escriba mientras otro accede. Los `join()` garantizan que leemos `suma1` y `suma2` solo cuando ya terminaron."
+    },
+    {
+      "type": "callout",
+      "variant": "exam",
+      "md": "En el examen suelen preguntar la diferencia entre **concurrencia** (estructura: varias tareas en progreso) y **paralelismo** (ejecución simultánea real en varios núcleos). Un programa puede ser concurrente sin ser paralelo."
+    },
+    {
+      "type": "text",
+      "md": "### ¿Y qué es una intercalación?\nCuando dos hilos corren, el sistema operativo decide en qué orden se ejecutan sus pasos. Cada orden posible es una **intercalación** (*interleaving*). Con 2 hilos de 3 pasos ya hay 20 intercalaciones. Un bug de concurrencia es una intercalación \"mala\" que quizás aparece una vez en un millón: por eso Telar las **explora todas**."
+    }
+  ],
+  "quiz": [
+    {
+      "id": "modelos-1",
+      "type": "concept",
+      "prompt": "¿Cuál de estas afirmaciones describe mejor la diferencia entre concurrencia y paralelismo?",
+      "options": [
+        {
+          "text": "Concurrencia es tener varias tareas en progreso; paralelismo es ejecutarlas literalmente al mismo tiempo en varios núcleos.",
+          "correct": true,
+          "why": "Exacto. La concurrencia es sobre la estructura del programa; el paralelismo, sobre la ejecución simultánea en hardware."
+        },
+        {
+          "text": "Son sinónimos: ambos significan usar varios núcleos.",
+          "correct": false,
+          "why": "No. Un programa concurrente puede correr en un solo núcleo intercalando las tareas."
+        },
+        {
+          "text": "El paralelismo solo existe con procesos y la concurrencia solo con hilos.",
+          "correct": false,
+          "why": "Ambos conceptos aplican a procesos y a hilos."
+        },
+        {
+          "text": "La concurrencia siempre es más rápida que el paralelismo.",
+          "correct": false,
+          "why": "No son comparables así: la concurrencia no garantiza velocidad; el paralelismo es lo que puede acelerar el cómputo."
+        }
+      ]
+    },
+    {
+      "id": "modelos-2",
+      "type": "concept",
+      "prompt": "Dos **hilos** del mismo proceso, ¿qué comparten?",
+      "options": [
+        {
+          "text": "Nada: cada hilo tiene su propia copia de toda la memoria.",
+          "correct": false,
+          "why": "Eso describe a dos procesos, no a dos hilos."
+        },
+        {
+          "text": "Solo los archivos abiertos.",
+          "correct": false,
+          "why": "También comparten la memoria global y el heap, no solo los archivos."
+        },
+        {
+          "text": "Solo la pila; el heap es privado de cada hilo.",
+          "correct": false,
+          "why": "Es al revés: la pila es privada y el heap es compartido."
+        },
+        {
+          "text": "Las variables globales y el heap; pero cada hilo tiene su propia pila (variables locales).",
+          "correct": true,
+          "why": "Correcto. Por eso una variable global usada por dos hilos es un riesgo, y una local no."
+        }
+      ]
+    },
+    {
+      "id": "modelos-3",
+      "type": "predict",
+      "prompt": "En el código de la lección (suma en dos mitades), ¿qué imprime el programa?",
+      "code": "std::vector<int> datos(1'000'000, 1);\nlong long suma1 = 0, suma2 = 0;\n// t1 suma la primera mitad en suma1\n// t2 suma la segunda mitad en suma2\nt1.join(); t2.join();\nstd::cout << suma1 + suma2;",
+      "options": [
+        {
+          "text": "Un número aleatorio, porque los hilos se intercalan.",
+          "correct": false,
+          "why": "La intercalación cambia el ORDEN, pero como los hilos no interfieren entre sí, el resultado final es el mismo."
+        },
+        {
+          "text": "A veces 1000000 y a veces 500000.",
+          "correct": false,
+          "why": "Eso pasaría si ambos hilos escribieran la misma variable sin protección. Aquí no comparten resultado."
+        },
+        {
+          "text": "Siempre 1000000.",
+          "correct": true,
+          "why": "Cada hilo escribe en su propia variable y leemos después de join(): no hay data race, el resultado es determinista."
+        },
+        {
+          "text": "No compila: los hilos no pueden leer el mismo vector.",
+          "correct": false,
+          "why": "Leer a la vez datos compartidos es seguro; el problema es escribir sin sincronización."
+        }
+      ]
+    },
+    {
+      "id": "modelos-4",
+      "type": "concept",
+      "prompt": "Un equipo usa **paso de mensajes** en lugar de memoria compartida. ¿Cuál es la principal ventaja?",
+      "options": [
+        {
+          "text": "Evita que dos tareas modifiquen a la vez los mismos datos, reduciendo races.",
+          "correct": true,
+          "why": "Correcto. Si nadie comparte datos mutables, desaparece la mayor fuente de data races."
+        },
+        {
+          "text": "Es siempre más rápido porque no copia datos.",
+          "correct": false,
+          "why": "Al contrario: enviar mensajes suele implicar copiar datos, lo que cuesta tiempo."
+        },
+        {
+          "text": "Elimina por completo la posibilidad de deadlock.",
+          "correct": false,
+          "why": "No: dos tareas que se esperan mutuamente un mensaje también se bloquean para siempre."
+        },
+        {
+          "text": "No necesita hilos ni procesos.",
+          "correct": false,
+          "why": "Los mensajes se envían ENTRE hilos o procesos; sí los necesita."
+        }
+      ]
+    },
+    {
+      "id": "modelos-5",
+      "type": "bug",
+      "prompt": "¿Cuál es el problema de este programa?",
+      "code": "long long total = 0;\nstd::thread t1([&] { for (int i = 0; i < 500; i++) total += i; });\nstd::thread t2([&] { for (int i = 500; i < 1000; i++) total += i; });\nt1.join(); t2.join();",
+      "options": [
+        {
+          "text": "Ninguno: cada hilo suma un rango distinto.",
+          "correct": false,
+          "why": "Los rangos son distintos, pero ambos escriben la MISMA variable total. El rango no importa: el acumulador es compartido."
+        },
+        {
+          "text": "Deadlock, porque join espera a ambos hilos.",
+          "correct": false,
+          "why": "join no causa deadlock: los hilos terminan por sí solos."
+        },
+        {
+          "text": "Falta llamar a detach().",
+          "correct": false,
+          "why": "join() es lo correcto aquí: necesitamos esperar el resultado."
+        },
+        {
+          "text": "Data race: ambos hilos leen y escriben total sin sincronización.",
+          "correct": true,
+          "why": "Exacto. total += i es leer + escribir; si se intercalan se pierden sumas. Solución: un acumulador por hilo (como en la lección) o un mutex."
+        }
+      ]
+    }
+  ],
+  "remember": [
+    "Concurrencia = varias tareas en progreso; paralelismo = ejecución simultánea real (varios núcleos).",
+    "Los hilos de un proceso comparten globales y heap; cada hilo tiene su propia pila (locales).",
+    "Tres modelos: memoria compartida (pizarra), paso de mensajes (buzón) y paralelismo de datos (cada uno su montón).",
+    "Leer a la vez es seguro; escribir mientras otro accede, sin sincronización, es una data race.",
+    "Una intercalación es un orden posible de los pasos de los hilos: un bug puede depender de una sola de ellas."
+  ]
+}

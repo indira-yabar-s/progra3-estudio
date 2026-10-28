@@ -1,0 +1,209 @@
+{
+  "id": "hilos",
+  "number": 2,
+  "title": "Hilos, race conditions y sincronización",
+  "subtitle": "std::thread, join, detach y por qué counter++ no es seguro",
+  "minutes": 20,
+  "telarExample": "contador-race",
+  "sections": [
+    {
+      "type": "text",
+      "md": "En C++11 en adelante, un hilo se crea con `std::thread` pasándole **algo que se pueda llamar**: una función, una lambda o un objeto con `operator()`. El hilo empieza a correr **apenas se construye**."
+    },
+    {
+      "type": "code",
+      "title": "Crear hilos y esperarlos con join()",
+      "code": "#include <iostream>\n#include <thread>\n\nvoid saludar(int id) {                       // función que correrá en otro hilo\n    std::cout << \"Hola desde el hilo \" << id << '\\n';\n}\n\nint main() {\n    std::thread t1(saludar, 1);               // crea el hilo: ejecuta saludar(1)\n    std::thread t2([] { saludar(2); });       // también vale una lambda\n\n    std::cout << \"Hola desde main\\n\";         // main sigue corriendo en paralelo\n\n    t1.join();                                // bloquea main hasta que t1 termine\n    t2.join();                                // idem con t2\n    return 0;                                 // ya es seguro terminar\n}",
+      "explain": "El orden de las tres líneas impresas **no está garantizado**: puede salir primero main, o el hilo 2. Incluso las líneas pueden mezclarse, porque `std::cout` no es atómico entre varios `<<`."
+    },
+    {
+      "type": "analogy",
+      "emoji": "🚌",
+      "title": "join vs. detach: el paseo escolar",
+      "md": "`join()` es la profesora que **espera en la puerta del bus** hasta que vuelva el último alumno; recién ahí se van.\n\n`detach()` es dejar que un alumno **vuelva a casa por su cuenta**: ya no lo esperas ni sabes cuándo llega. Si el bus (el programa) se va y el alumno usaba algo del bus (variables locales de main), tenemos un problema."
+    },
+    {
+      "type": "callout",
+      "variant": "warning",
+      "md": "Todo `std::thread` debe terminar con `join()` **o** `detach()` antes de destruirse. Si se destruye siendo *joinable*, el programa llama a `std::terminate()` y aborta. Además, `join()` solo se puede llamar una vez: puedes preguntar con `t.joinable()`."
+    },
+    {
+      "type": "code",
+      "title": "El peligro de detach",
+      "code": "#include <chrono>\n#include <iostream>\n#include <thread>\n\nint main() {\n    int contador = 0;                         // variable LOCAL de main\n\n    std::thread t([&contador] {               // captura contador por referencia\n        std::this_thread::sleep_for(std::chrono::seconds(1));\n        contador++;                           // ¡main quizás ya terminó!\n    });\n    t.detach();                               // ya no lo esperamos\n\n    return 0;                                 // contador se destruye aquí:\n}                                             // el hilo usa memoria inválida (UB)",
+      "explain": "Con `detach()` el hilo puede sobrevivir a las variables que usa. Úsalo solo para tareas totalmente independientes que no referencian datos locales."
+    },
+    {
+      "type": "text",
+      "md": "### Race condition (condición de carrera)\nHay una **condición de carrera** cuando el resultado depende del orden en que se intercalen los hilos. El caso más común es una **data race**: dos hilos acceden a la misma variable, al menos uno escribe, y no hay sincronización entre ellos. En C++ una data race es **comportamiento indefinido**."
+    },
+    {
+      "type": "analogy",
+      "emoji": "🏦",
+      "title": "Por qué counter++ falla: dos cajeros y una libreta",
+      "md": "Dos cajeros deben sumar 1 al saldo escrito en una libreta. Cada uno: (1) **lee** el número, (2) le suma 1 en su cabeza, (3) **escribe** el resultado. Si ambos leen \"10\" antes de que alguno escriba, ambos escriben \"11\". Se perdió un depósito. `counter++` es exactamente eso: **leer, sumar, escribir**."
+    },
+    {
+      "type": "code",
+      "title": "La race condition clásica",
+      "code": "#include <iostream>\n#include <thread>\n\nint counter = 0;                              // global: compartida por todos los hilos\n\nvoid incrementar() {\n    for (int i = 0; i < 100000; i++) {\n        counter++;                            // leer + sumar + escribir: NO es atómico\n    }\n}\n\nint main() {\n    std::thread t1(incrementar);\n    std::thread t2(incrementar);\n    t1.join();\n    t2.join();\n    std::cout << counter << '\\n';             // esperado 200000... sale menos casi siempre\n}",
+      "explain": "Ejecútalo varias veces: verás 200000, 143512, 187009… El resultado cambia porque depende de la intercalación. Pulsa **Abrir en Telar** para ver la intercalación exacta que pierde un incremento."
+    },
+    {
+      "type": "text",
+      "md": "### Sincronización\n**Sincronizar** es imponer un orden entre acciones de distintos hilos. Las herramientas del curso:\n- `join()`: \"espera a que el hilo termine\".\n- `std::mutex`: exclusión mutua, una sección crítica a la vez (lección 3).\n- `std::condition_variable`: \"duerme hasta que pase algo\" (lección 4).\n- `promise/future`: \"pásame un valor cuando esté listo\" (lección 5).\n- `std::atomic<int>`: operaciones indivisibles sobre una variable simple (`counter++` atómico)."
+    },
+    {
+      "type": "callout",
+      "variant": "tip",
+      "md": "Una **sección crítica** es el fragmento de código que accede a datos compartidos y que no debe ejecutarse por dos hilos a la vez."
+    }
+  ],
+  "quiz": [
+    {
+      "id": "hilos-1",
+      "type": "predict",
+      "prompt": "¿Qué valores puede imprimir este programa?",
+      "code": "int x = 0;\nstd::thread t1([] { x = 1; });\nstd::thread t2([] { x = 2; });\nt1.join(); t2.join();\nstd::cout << x;",
+      "options": [
+        {
+          "text": "Solo 2, porque t2 se creó después.",
+          "correct": false,
+          "why": "Crear un hilo después no garantiza que ejecute después; el planificador decide."
+        },
+        {
+          "text": "0, porque main imprime antes que los hilos.",
+          "correct": false,
+          "why": "Los join() garantizan que ambos hilos terminaron antes del cout."
+        },
+        {
+          "text": "Siempre 3.",
+          "correct": false,
+          "why": "Son asignaciones, no sumas: x nunca vale 1 + 2."
+        },
+        {
+          "text": "1 o 2 (y técnicamente es una data race: UB).",
+          "correct": true,
+          "why": "Correcto. El último en escribir gana y no sabemos cuál será. Además, dos escrituras sin sincronización son una data race."
+        }
+      ]
+    },
+    {
+      "id": "hilos-2",
+      "type": "bug",
+      "prompt": "Este programa a veces termina con *terminate called without an active exception*. ¿Por qué?",
+      "code": "void tarea() { /* ... */ }\n\nint main() {\n    std::thread t(tarea);\n    if (algo_fallo()) return 1;\n    t.join();\n}",
+      "options": [
+        {
+          "text": "Si algo_fallo() es true, t se destruye siendo joinable y se llama a std::terminate.",
+          "correct": true,
+          "why": "Exacto. En ese camino nunca se hace join() ni detach(). Solución: join antes del return o un wrapper RAII (std::jthread en C++20)."
+        },
+        {
+          "text": "Porque tarea no recibe parámetros.",
+          "correct": false,
+          "why": "Un hilo puede ejecutar una función sin parámetros sin problema."
+        },
+        {
+          "text": "Porque join() siempre lanza una excepción.",
+          "correct": false,
+          "why": "join() solo lanza si el hilo no es joinable."
+        },
+        {
+          "text": "Porque falta #include <mutex>.",
+          "correct": false,
+          "why": "No se usa ningún mutex; el error es de ciclo de vida del hilo."
+        }
+      ]
+    },
+    {
+      "id": "hilos-3",
+      "type": "concept",
+      "prompt": "¿Por qué `counter++` sobre un `int` compartido no es seguro entre hilos?",
+      "options": [
+        {
+          "text": "Porque el operador ++ está prohibido con hilos.",
+          "correct": false,
+          "why": "No está prohibido; el problema es que no es una operación indivisible."
+        },
+        {
+          "text": "Solo falla en procesadores de 32 bits.",
+          "correct": false,
+          "why": "Falla en cualquier arquitectura multinúcleo (y también en un solo núcleo con cambios de contexto)."
+        },
+        {
+          "text": "Porque los int no pueden ser globales.",
+          "correct": false,
+          "why": "Sí pueden; el problema es el acceso concurrente sin sincronizar."
+        },
+        {
+          "text": "Porque son tres pasos (leer, sumar, escribir) y otro hilo puede intercalarse entre ellos.",
+          "correct": true,
+          "why": "Correcto: si dos hilos leen el mismo valor antes de escribir, se pierde un incremento."
+        }
+      ]
+    },
+    {
+      "id": "hilos-4",
+      "type": "complete",
+      "prompt": "Completa la línea que falta para que main espere al hilo antes de imprimir el resultado:",
+      "code": "int r = 0;\nstd::thread t([&] { r = calcular(); });\n_________\nstd::cout << r;",
+      "options": [
+        {
+          "text": "t.detach();",
+          "correct": false,
+          "why": "detach suelta el hilo: main podría imprimir r antes de que se calcule."
+        },
+        {
+          "text": "std::this_thread::yield();",
+          "correct": false,
+          "why": "yield solo sugiere ceder la CPU; no espera a que t termine."
+        },
+        {
+          "text": "t.wait();",
+          "correct": false,
+          "why": "std::thread no tiene método wait (eso es de condition_variable/future)."
+        },
+        {
+          "text": "t.join();",
+          "correct": true,
+          "why": "join bloquea hasta que t termine; después r ya tiene el valor y la lectura es segura."
+        }
+      ]
+    },
+    {
+      "id": "hilos-5",
+      "type": "concept",
+      "prompt": "¿Cuándo es razonable usar `detach()`?",
+      "options": [
+        {
+          "text": "Para tareas independientes de fondo que no usan variables locales que puedan destruirse.",
+          "correct": true,
+          "why": "Correcto, por ejemplo un registro (log) que solo usa datos propios o globales que viven todo el programa."
+        },
+        {
+          "text": "Siempre, para que el programa sea más rápido.",
+          "correct": false,
+          "why": "detach no acelera nada y hace imposible saber cuándo termina el hilo."
+        },
+        {
+          "text": "Cuando necesitas el resultado del hilo.",
+          "correct": false,
+          "why": "Si necesitas el resultado, necesitas esperar: join o un future."
+        },
+        {
+          "text": "Para evitar data races.",
+          "correct": false,
+          "why": "detach no sincroniza nada; las races siguen ahí."
+        }
+      ]
+    }
+  ],
+  "remember": [
+    "std::thread t(f, args...) empieza a correr al construirse; el orden entre hilos no está garantizado.",
+    "Cada thread debe hacer join() o detach() antes de destruirse; si no, std::terminate.",
+    "join() = esperar a que termine; detach() = soltarlo (cuidado con referencias a locales).",
+    "Data race = dos hilos, misma variable, al menos uno escribe, sin sincronización → comportamiento indefinido.",
+    "counter++ son 3 pasos (leer, sumar, escribir): sin mutex o atomic se pierden incrementos."
+  ]
+}

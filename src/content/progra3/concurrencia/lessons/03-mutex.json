@@ -1,0 +1,207 @@
+{
+  "id": "mutex",
+  "number": 3,
+  "title": "mutex, lock_guard, unique_lock y scoped_lock",
+  "subtitle": "Exclusión mutua, RAII, deadlock y cómo evitarlo",
+  "minutes": 25,
+  "telarExample": "deadlock-clasico",
+  "sections": [
+    {
+      "type": "analogy",
+      "emoji": "🚻",
+      "title": "El mutex es la llave del baño",
+      "md": "En un restaurante hay un solo baño y **una sola llave**. Quien quiere entrar pide la llave (`lock`); si otro la tiene, **espera en la puerta**. Al salir devuelve la llave (`unlock`) y el siguiente entra. *Mutex* viene de **mut**ual **ex**clusion: exclusión mutua."
+    },
+    {
+      "type": "code",
+      "title": "El contador, ahora con std::mutex",
+      "code": "#include <iostream>\n#include <mutex>\n#include <thread>\n\nint counter = 0;\nstd::mutex m;                                 // protege a counter\n\nvoid incrementar() {\n    for (int i = 0; i < 100000; i++) {\n        m.lock();                             // pide la llave (espera si otro la tiene)\n        counter++;                            // sección crítica: un hilo a la vez\n        m.unlock();                           // devuelve la llave\n    }\n}\n\nint main() {\n    std::thread t1(incrementar), t2(incrementar);\n    t1.join();\n    t2.join();\n    std::cout << counter << '\\n';             // siempre 200000\n}",
+      "explain": "Funciona, pero tiene un riesgo: si entre `lock()` y `unlock()` hay un `return` o se lanza una excepción, **la llave nunca se devuelve** y los demás hilos esperan para siempre."
+    },
+    {
+      "type": "text",
+      "md": "### RAII: lock_guard\n**RAII** (*Resource Acquisition Is Initialization*) significa: el **constructor** adquiere el recurso y el **destructor** lo libera. Como C++ siempre llama al destructor al salir del bloque (por `return`, por excepción o normalmente), es imposible olvidar el `unlock`."
+    },
+    {
+      "type": "code",
+      "title": "lock_guard: el unlock automático",
+      "code": "void incrementar() {\n    for (int i = 0; i < 100000; i++) {\n        std::lock_guard<std::mutex> guard(m);   // constructor: m.lock()\n        counter++;\n    }                                            // destructor de guard: m.unlock()\n}"
+    },
+    {
+      "type": "text",
+      "md": "### unique_lock: un lock_guard flexible\n`std::unique_lock` también es RAII, pero además permite:\n- `lk.unlock()` y `lk.lock()` en medio del bloque,\n- crearlo sin bloquear (`std::defer_lock`),\n- **moverlo** a otra función,\n- y es el que exige `condition_variable::wait` (lección 4), porque `wait` necesita soltar y volver a tomar el mutex."
+    },
+    {
+      "type": "code",
+      "title": "unique_lock: soltar el mutex antes de una tarea lenta",
+      "code": "#include <mutex>\n#include <string>\n\nstd::mutex m;\nstd::string ultimo_mensaje;                   // dato compartido\n\nvoid procesar(const std::string& nuevo) {\n    std::unique_lock<std::mutex> lk(m);       // toma m\n    ultimo_mensaje = nuevo;                   // sección crítica corta\n    lk.unlock();                              // suelta m ANTES de la parte lenta\n\n    escribir_en_disco(nuevo);                 // no necesita el mutex: otros hilos avanzan\n}                                             // destructor: no hace nada (ya no tiene m)"
+    },
+    {
+      "type": "text",
+      "md": "### Deadlock (interbloqueo)\nUn **deadlock** ocurre cuando un grupo de hilos se espera mutuamente y ninguno puede avanzar. Las **4 condiciones de Coffman** deben cumplirse a la vez:\n1. **Exclusión mutua**: el recurso lo usa uno a la vez.\n2. **Retener y esperar**: un hilo tiene un recurso y espera otro.\n3. **No expropiación**: nadie puede quitarle el recurso por la fuerza.\n4. **Espera circular**: A espera a B, B espera a A (un ciclo).\n\nBasta romper **una** para evitar el deadlock. La más fácil de romper es la **espera circular**."
+    },
+    {
+      "type": "analogy",
+      "emoji": "🚗",
+      "title": "Deadlock: el cruce sin semáforo",
+      "md": "Cuatro autos llegan a la vez a un cruce y cada uno espera al de su derecha. Nadie se mueve nunca. Si todos aplicaran la misma regla de prioridad (por ejemplo, \"pasa primero el que viene del norte\"), el ciclo no se formaría."
+    },
+    {
+      "type": "code",
+      "title": "El deadlock clásico... y dos soluciones",
+      "code": "std::mutex a, b;\n\n// ❌ DEADLOCK: cada hilo toma los mutex en orden distinto\nvoid hilo1() { std::lock_guard<std::mutex> g1(a); std::lock_guard<std::mutex> g2(b); /*...*/ }\nvoid hilo2() { std::lock_guard<std::mutex> g1(b); std::lock_guard<std::mutex> g2(a); /*...*/ }\n// hilo1 toma a, hilo2 toma b → hilo1 espera b, hilo2 espera a → ciclo\n\n// ✅ Solución 1: orden global. Todos toman a y luego b.\nvoid hilo2_ok() { std::lock_guard<std::mutex> g1(a); std::lock_guard<std::mutex> g2(b); /*...*/ }\n\n// ✅ Solución 2 (C++17): scoped_lock toma varios mutex sin deadlock,\n// sin importar el orden en que los pases.\nvoid hilo2_mejor() {\n    std::scoped_lock lk(b, a);               // usa std::lock por dentro: todos o ninguno\n    /*...*/\n}                                            // suelta ambos al salir"
+    },
+    {
+      "type": "callout",
+      "variant": "exam",
+      "md": "Pregunta típica: *¿lock_guard o unique_lock?* → `lock_guard` si solo necesitas bloquear todo el bloque (más simple y liviano). `unique_lock` si necesitas `unlock` manual, moverlo o usarlo con `condition_variable`. `scoped_lock` para **varios** mutex a la vez."
+    }
+  ],
+  "quiz": [
+    {
+      "id": "mutex-1",
+      "type": "bug",
+      "prompt": "¿Qué problema tiene esta función?",
+      "code": "std::mutex m;\nint saldo = 100;\n\nbool retirar(int x) {\n    m.lock();\n    if (saldo < x) return false;\n    saldo -= x;\n    m.unlock();\n    return true;\n}",
+      "options": [
+        {
+          "text": "Si saldo < x, retorna sin hacer unlock: el mutex queda tomado para siempre.",
+          "correct": true,
+          "why": "Exacto. La próxima llamada se bloquea eternamente. Solución: std::lock_guard<std::mutex> g(m); (RAII)."
+        },
+        {
+          "text": "Ninguno, el acceso a saldo está protegido.",
+          "correct": false,
+          "why": "Está protegido, pero hay un camino que nunca suelta el mutex."
+        },
+        {
+          "text": "Data race en x.",
+          "correct": false,
+          "why": "x es un parámetro: cada llamada tiene su propia copia en su pila."
+        },
+        {
+          "text": "El mutex debería ser local a la función.",
+          "correct": false,
+          "why": "Un mutex local no protegería nada: cada llamada tendría el suyo."
+        }
+      ]
+    },
+    {
+      "id": "mutex-2",
+      "type": "concept",
+      "prompt": "¿Cuál es la principal ventaja de `std::lock_guard` sobre llamar a `lock()`/`unlock()` a mano?",
+      "options": [
+        {
+          "text": "Es más rápido que el mutex.",
+          "correct": false,
+          "why": "Usa el mismo mutex; el costo es prácticamente igual."
+        },
+        {
+          "text": "Evita automáticamente cualquier deadlock.",
+          "correct": false,
+          "why": "No. Dos lock_guard en orden distinto siguen pudiendo causar deadlock."
+        },
+        {
+          "text": "Permite que dos hilos entren a la vez a la sección crítica.",
+          "correct": false,
+          "why": "No: sigue habiendo exclusión mutua."
+        },
+        {
+          "text": "Libera el mutex automáticamente al salir del bloque, incluso con return o excepciones (RAII).",
+          "correct": true,
+          "why": "Correcto. El destructor siempre se ejecuta al salir del ámbito."
+        }
+      ]
+    },
+    {
+      "id": "mutex-3",
+      "type": "predict",
+      "prompt": "Dos hilos ejecutan esto al mismo tiempo. ¿Qué puede pasar?",
+      "code": "std::mutex a, b;\n// Hilo 1:\na.lock(); b.lock(); /*...*/ b.unlock(); a.unlock();\n// Hilo 2:\nb.lock(); a.lock(); /*...*/ a.unlock(); b.unlock();",
+      "options": [
+        {
+          "text": "Siempre termina bien.",
+          "correct": false,
+          "why": "En muchas ejecuciones sí, pero existe una intercalación que bloquea todo."
+        },
+        {
+          "text": "Error de compilación por usar dos mutex.",
+          "correct": false,
+          "why": "Es código válido; el problema aparece en tiempo de ejecución."
+        },
+        {
+          "text": "Puede ocurrir un deadlock si hilo 1 toma a y hilo 2 toma b antes del segundo lock.",
+          "correct": true,
+          "why": "Correcto. Es la espera circular: cada uno tiene lo que el otro necesita. Telar lo encuentra en 2 pasos."
+        },
+        {
+          "text": "Data race sobre a y b.",
+          "correct": false,
+          "why": "Los mutex están hechos para usarse desde varios hilos; no hay data race sobre ellos."
+        }
+      ]
+    },
+    {
+      "id": "mutex-4",
+      "type": "complete",
+      "prompt": "Completa la línea para tomar `cuentaA.m` y `cuentaB.m` a la vez **sin riesgo de deadlock** (C++17):",
+      "code": "void transferir(Cuenta& cuentaA, Cuenta& cuentaB, int x) {\n    _____________________\n    cuentaA.saldo -= x;\n    cuentaB.saldo += x;\n}",
+      "options": [
+        {
+          "text": "cuentaA.m.lock(); cuentaB.m.lock();",
+          "correct": false,
+          "why": "Si otro hilo transfiere de B a A al mismo tiempo, se forma el deadlock clásico. Además no hay unlock."
+        },
+        {
+          "text": "std::lock_guard<std::mutex> lk(cuentaA.m, cuentaB.m);",
+          "correct": false,
+          "why": "lock_guard recibe un solo mutex (el segundo parámetro sería adopt_lock, no otro mutex)."
+        },
+        {
+          "text": "std::scoped_lock lk(cuentaA.m, cuentaB.m);",
+          "correct": true,
+          "why": "scoped_lock adquiere todos los mutex con un algoritmo que evita el deadlock, y los suelta al salir (RAII)."
+        },
+        {
+          "text": "std::unique_lock<std::mutex> lk(cuentaA.m);",
+          "correct": false,
+          "why": "Solo protege cuentaA; cuentaB.saldo queda sin proteger."
+        }
+      ]
+    },
+    {
+      "id": "mutex-5",
+      "type": "concept",
+      "prompt": "¿Cuál de estas técnicas rompe la condición de **espera circular** de Coffman?",
+      "options": [
+        {
+          "text": "Tomar siempre los mutex en un orden global fijo (por ejemplo, por dirección o por id).",
+          "correct": true,
+          "why": "Correcto. Si todos piden en el mismo orden, nunca puede haber un ciclo en el grafo de espera."
+        },
+        {
+          "text": "Usar más hilos.",
+          "correct": false,
+          "why": "Más hilos no rompe ningún ciclo; puede empeorar la situación."
+        },
+        {
+          "text": "Usar unique_lock en lugar de lock_guard.",
+          "correct": false,
+          "why": "Cambia la flexibilidad, no el orden en que se toman los mutex."
+        },
+        {
+          "text": "Hacer detach de todos los hilos.",
+          "correct": false,
+          "why": "detach no tiene relación con los mutex que cada hilo toma."
+        }
+      ]
+    }
+  ],
+  "remember": [
+    "mutex = exclusión mutua: solo un hilo a la vez en la sección crítica (lock/unlock).",
+    "lock_guard (RAII): lock en el constructor, unlock en el destructor; nunca se olvida el unlock.",
+    "unique_lock: como lock_guard pero con unlock/lock manual, movible y necesario para condition_variable.",
+    "Deadlock = 4 condiciones de Coffman (exclusión, retener y esperar, no expropiación, espera circular).",
+    "Evítalo con orden global de bloqueo o con std::scoped_lock(a, b) para varios mutex a la vez."
+  ]
+}

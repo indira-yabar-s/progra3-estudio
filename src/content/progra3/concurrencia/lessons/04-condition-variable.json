@@ -1,0 +1,190 @@
+{
+  "id": "condition-variable",
+  "number": 4,
+  "title": "condition_variable: productor–consumidor",
+  "subtitle": "Esperar a que algo ocurra sin gastar CPU",
+  "minutes": 25,
+  "telarExample": "productor-consumidor",
+  "sections": [
+    {
+      "type": "text",
+      "md": "A veces un hilo no puede avanzar hasta que **otro** haga algo: el consumidor necesita que haya datos, el productor necesita que haya espacio. Preguntar en un bucle (`while (!listo) {}`) se llama **espera activa** y desperdicia CPU. La solución es **dormir** hasta que alguien avise: eso hace `std::condition_variable`."
+    },
+    {
+      "type": "analogy",
+      "emoji": "🍽️",
+      "title": "El mozo y la campanita de la cocina",
+      "md": "El mozo (consumidor) no entra a la cocina cada 2 segundos a preguntar \"¿ya está el plato?\". Se sienta y **espera la campanita**. Cuando el cocinero (productor) termina un plato lo pone en la barra y **toca la campana** (`notify_one`). El mozo se despierta, **revisa que de verdad haya un plato** y lo lleva.\n\nEse \"revisar\" es clave: quizás otro mozo ya se lo llevó, o la campana sonó por error."
+    },
+    {
+      "type": "text",
+      "md": "### Las tres piezas, siempre juntas\n1. Un **mutex** que protege el estado compartido.\n2. Una **condición** sobre ese estado (`!cola.empty()`).\n3. La **condition_variable** para dormir y despertar.\n\n`cv.wait(lk)` hace, de forma atómica: **soltar el mutex y dormir**. Al despertar, **vuelve a tomar el mutex** antes de retornar. Por eso necesita un `unique_lock` (un `lock_guard` no se puede soltar)."
+    },
+    {
+      "type": "code",
+      "title": "Productor–consumidor con una cola",
+      "code": "#include <condition_variable>\n#include <iostream>\n#include <mutex>\n#include <queue>\n#include <thread>\n\nstd::queue<int> cola;                         // estado compartido\nstd::mutex m;                                 // protege a cola y a terminado\nstd::condition_variable cv;                   // \"la campanita\"\nbool terminado = false;\n\nvoid productor() {\n    for (int i = 1; i <= 5; i++) {\n        {\n            std::lock_guard<std::mutex> lk(m); // protege el push\n            cola.push(i);\n        }                                      // suelta m ANTES de avisar\n        cv.notify_one();                       // despierta a un consumidor dormido\n    }\n    {\n        std::lock_guard<std::mutex> lk(m);\n        terminado = true;                      // también se modifica bajo el mutex\n    }\n    cv.notify_all();                           // avisa a todos que ya no habrá más\n}\n\nvoid consumidor() {\n    while (true) {\n        std::unique_lock<std::mutex> lk(m);    // unique_lock: wait necesita soltarlo\n        // Duerme MIENTRAS la cola esté vacía y no hayamos terminado.\n        cv.wait(lk, [] { return !cola.empty() || terminado; });\n        if (cola.empty()) break;               // terminado y sin datos: salimos\n        int x = cola.front();\n        cola.pop();\n        lk.unlock();                           // procesar fuera de la sección crítica\n        std::cout << \"consumí \" << x << '\\n';\n    }\n}\n\nint main() {\n    std::thread p(productor), c(consumidor);\n    p.join();\n    c.join();\n}",
+      "explain": "`cv.wait(lk, pred)` equivale a `while (!pred()) cv.wait(lk);`. El predicado se revisa **antes** de dormir (por si el aviso ya llegó) y **después** de despertar (por si fue un despertar espurio)."
+    },
+    {
+      "type": "callout",
+      "variant": "warning",
+      "md": "**Despertar espurio**: el estándar permite que `wait` retorne sin que nadie haya llamado a `notify`. **Notificación perdida**: si llamas a `notify` cuando nadie espera, el aviso se pierde. Las dos trampas se evitan igual: espera siempre **una condición**, no un evento."
+    },
+    {
+      "type": "text",
+      "md": "### notify_one vs. notify_all\n- `notify_one()`: despierta a **un** hilo dormido (no sabes cuál). Ideal cuando cualquier consumidor puede atender el trabajo.\n- `notify_all()`: despierta a **todos**; cada uno revisa su condición y los que no pueden avanzar vuelven a dormir. Úsalo cuando el cambio puede interesar a varios (por ejemplo, `terminado = true`)."
+    },
+    {
+      "type": "callout",
+      "variant": "exam",
+      "md": "Si te piden \"completar el wait\", recuerda la firma: `cv.wait(lock, predicado)` donde `lock` es un `std::unique_lock<std::mutex>` y el predicado devuelve `true` cuando **puedes continuar**."
+    }
+  ],
+  "quiz": [
+    {
+      "id": "cv-1",
+      "type": "concept",
+      "prompt": "¿Qué hace exactamente `cv.wait(lk)`?",
+      "options": [
+        {
+          "text": "Duerme sin soltar el mutex, para que nadie cambie el estado.",
+          "correct": false,
+          "why": "Si no soltara el mutex, el productor nunca podría modificar el estado y nadie despertaría al consumidor: deadlock."
+        },
+        {
+          "text": "Revisa la condición en un bucle activo sin dormir.",
+          "correct": false,
+          "why": "Justamente evita la espera activa: el hilo duerme sin usar CPU."
+        },
+        {
+          "text": "Espera a que el hilo productor termine (como join).",
+          "correct": false,
+          "why": "wait espera una notificación, no la terminación de un hilo."
+        },
+        {
+          "text": "Suelta el mutex y duerme de forma atómica; al despertar vuelve a tomarlo antes de retornar.",
+          "correct": true,
+          "why": "Correcto. Esa atomicidad evita perder un notify entre soltar el mutex y dormir."
+        }
+      ]
+    },
+    {
+      "id": "cv-2",
+      "type": "bug",
+      "prompt": "El consumidor a veces se queda dormido para siempre. ¿Por qué?",
+      "code": "// consumidor\nstd::unique_lock<std::mutex> lk(m);\ncv.wait(lk);\nprocesar(dato);\n\n// productor\n{ std::lock_guard<std::mutex> g(m); dato = 42; listo = true; }\ncv.notify_one();",
+      "options": [
+        {
+          "text": "Porque falta notify_all.",
+          "correct": false,
+          "why": "Con un solo consumidor, notify_one basta; el problema es otro."
+        },
+        {
+          "text": "Porque el productor usa lock_guard.",
+          "correct": false,
+          "why": "El productor puede usar lock_guard sin problema: él no espera."
+        },
+        {
+          "text": "Porque unique_lock no sirve con condition_variable.",
+          "correct": false,
+          "why": "Al contrario: condition_variable::wait exige un unique_lock."
+        },
+        {
+          "text": "Si el productor notifica antes de que el consumidor llegue a wait, el aviso se pierde: debió esperar la condición listo.",
+          "correct": true,
+          "why": "Exacto: notificación perdida. Solución: cv.wait(lk, []{ return listo; }); — si listo ya es true, ni siquiera duerme. Pruébalo en Telar con el ejemplo \"Notificación perdida\"."
+        }
+      ]
+    },
+    {
+      "id": "cv-3",
+      "type": "complete",
+      "prompt": "Completa el wait para que el consumidor duerma **mientras la cola esté vacía**:",
+      "code": "std::unique_lock<std::mutex> lk(m);\ncv.wait(lk, ______________________);\nint x = cola.front(); cola.pop();",
+      "options": [
+        {
+          "text": "[] { return cola.empty(); }",
+          "correct": false,
+          "why": "El predicado indica cuándo CONTINUAR. Con este, continuaría justo cuando la cola está vacía."
+        },
+        {
+          "text": "true",
+          "correct": false,
+          "why": "No compila como predicado y, aunque lo hiciera, nunca esperaría."
+        },
+        {
+          "text": "cola.size() > 0",
+          "correct": false,
+          "why": "Se evaluaría una sola vez antes de llamar; wait necesita una función que pueda volver a evaluar."
+        },
+        {
+          "text": "[] { return !cola.empty(); }",
+          "correct": true,
+          "why": "Correcto: sigue durmiendo mientras el predicado sea false, es decir, mientras la cola esté vacía."
+        }
+      ]
+    },
+    {
+      "id": "cv-4",
+      "type": "concept",
+      "prompt": "¿Por qué la condición se revisa en un `while` (o con el predicado) y no con un `if`?",
+      "options": [
+        {
+          "text": "Por estilo: if y while son equivalentes aquí.",
+          "correct": false,
+          "why": "No son equivalentes: con if, tras despertar se continúa aunque la condición no se cumpla."
+        },
+        {
+          "text": "Porque wait solo funciona dentro de un bucle.",
+          "correct": false,
+          "why": "wait funciona en cualquier sitio; el bucle es para que el programa sea correcto."
+        },
+        {
+          "text": "Por los despertares espurios y porque otro hilo pudo cambiar el estado antes de que retomes el mutex.",
+          "correct": true,
+          "why": "Correcto. Al despertar hay que volver a comprobar; si no se cumple, se vuelve a dormir."
+        },
+        {
+          "text": "Para que el hilo use más CPU y responda antes.",
+          "correct": false,
+          "why": "El bucle no gasta CPU: el hilo duerme dentro de wait."
+        }
+      ]
+    },
+    {
+      "id": "cv-5",
+      "type": "predict",
+      "prompt": "Hay 3 consumidores dormidos en `cv` y el productor agrega **un** elemento y llama a `notify_all()`. ¿Qué pasa?",
+      "options": [
+        {
+          "text": "Solo despierta uno, igual que notify_one.",
+          "correct": false,
+          "why": "notify_all despierta a todos los que esperan."
+        },
+        {
+          "text": "Los 3 consumen el mismo elemento.",
+          "correct": false,
+          "why": "El mutex y el predicado lo impiden: solo uno lo saca de la cola."
+        },
+        {
+          "text": "Los 3 despiertan, uno a la vez toma el mutex; el primero consume y los otros dos ven la cola vacía y vuelven a dormir.",
+          "correct": true,
+          "why": "Correcto, gracias al predicado. Funciona, pero despertar a todos cuando solo hay un dato es desperdicio: aquí bastaba notify_one."
+        },
+        {
+          "text": "Deadlock entre los consumidores.",
+          "correct": false,
+          "why": "Toman el mutex por turnos; no hay ciclo de espera."
+        }
+      ]
+    }
+  ],
+  "remember": [
+    "condition_variable = dormir hasta que otro hilo avise; evita la espera activa.",
+    "Siempre: mutex + condición sobre el estado + cv. Modifica el estado con el mutex tomado.",
+    "cv.wait(lk, pred) con std::unique_lock; pred devuelve true cuando puedes continuar.",
+    "wait suelta el mutex y duerme (atómico); al despertar lo retoma y revisa la condición otra vez.",
+    "Despertar espurio y notificación perdida: se evitan esperando una condición, no un evento."
+  ]
+}
