@@ -1,8 +1,9 @@
 /// <reference types="vitest/config" />
-import { defineConfig } from 'vite';
+import { defineConfig, type PluginOption } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { visualizer } from 'rollup-plugin-visualizer';
 import { fileURLToPath, URL } from 'node:url';
 
 // GitHub Pages sirve el sitio en /<repo>/. En desarrollo usamos la raíz.
@@ -23,6 +24,13 @@ export default defineConfig(({ command, isPreview }) => ({
   plugins: [
     react(),
     tailwindcss(),
+    // `ANALYZE=1 npm run build` genera stats/bundle.html (treemap) y stats/bundle.json.
+    ...(process.env.ANALYZE
+      ? ([
+          visualizer({ filename: 'stats/bundle.html', template: 'treemap', gzipSize: true }),
+          visualizer({ filename: 'stats/bundle.json', template: 'raw-data', gzipSize: true }),
+        ] as PluginOption[])
+      : []),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
