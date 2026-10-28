@@ -139,12 +139,21 @@ export function WaitGraphView({ program, snapshot }: { program: ProgramInfo; sna
             const len = Math.hypot(dx, dy) || 1;
             const ux = dx / len;
             const uy = dy / len;
-            const sx = a.x + ux * 28;
-            const sy = a.y + uy * 28;
-            const ex = b.x - ux * 30;
-            const ey = b.y - uy * 30;
-            const mx = (sx + ex) / 2 - uy * 22;
-            const my = (sy + ey) / 2 + ux * 22;
+            const sx = a.x + ux * 32;
+            const sy = a.y + uy * 32;
+            const ex = b.x - ux * 34;
+            const ey = b.y - uy * 34;
+            // Curvamos hacia AFUERA del círculo para que las etiquetas no se encimen en el centro.
+            let nx = -uy;
+            let ny = ux;
+            const midX = (sx + ex) / 2;
+            const midY = (sy + ey) / 2;
+            if ((midX - cx) * nx + (midY - cy) * ny < 0) {
+              nx = -nx;
+              ny = -ny;
+            }
+            const mx = midX + nx * 26;
+            const my = midY + ny * 26;
             return (
               <g key={k}>
                 <path
@@ -188,7 +197,7 @@ export function WaitGraphView({ program, snapshot }: { program: ProgramInfo; sna
                 <circle
                   cx={p.x}
                   cy={p.y}
-                  r="24"
+                  r="28"
                   fill={`color-mix(in srgb, ${threadColor(i)} 22%, var(--bg))`}
                   stroke={hot ? 'var(--err)' : threadColor(i)}
                   strokeWidth="2.5"
