@@ -8,8 +8,8 @@ import { fileURLToPath, URL } from 'node:url';
 // GitHub Pages sirve el sitio en /<repo>/. En desarrollo usamos la raíz.
 const base = process.env.BASE_PATH ?? '/progra3-estudio/';
 
-export default defineConfig(({ command }) => ({
-  base: command === 'build' ? base : '/',
+export default defineConfig(({ command, isPreview }) => ({
+  base: command === 'build' || isPreview ? base : '/',
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -18,6 +18,8 @@ export default defineConfig(({ command }) => ({
     },
   },
   worker: { format: 'es' },
+  // Monaco pesa ~3 MB: se carga de forma diferida (lazy) solo en el verificador.
+  build: { chunkSizeWarningLimit: 3500 },
   plugins: [
     react(),
     tailwindcss(),
