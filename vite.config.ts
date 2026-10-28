@@ -11,7 +11,11 @@ const base = process.env.BASE_PATH ?? '/progra3-estudio/';
 export default defineConfig(({ command }) => ({
   base: command === 'build' ? base : '/',
   resolve: {
-    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      // El campo "exports" de monaco-editor no expone sus .css; los importamos por ruta.
+      '@monaco-css': fileURLToPath(new URL('./node_modules/monaco-editor/esm/vs', import.meta.url)),
+    },
   },
   worker: { format: 'es' },
   plugins: [
