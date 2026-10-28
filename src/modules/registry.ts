@@ -2,6 +2,8 @@ import type { LucideIcon } from 'lucide-react';
 import { BookOpen, GitFork, GraduationCap, Layers, Puzzle, Workflow } from 'lucide-react';
 import { lazy, type ComponentType, type LazyExoticComponent } from 'react';
 import type { MessageKey } from '@/i18n';
+import LearnSkeleton from './learn/LearnSkeleton';
+import VerifierSkeleton from './verifier/VerifierSkeleton';
 
 /**
  * Registro de módulos del laboratorio. Cada fase agrega su módulo aquí:
@@ -17,6 +19,8 @@ export interface LabModule {
   icon: LucideIcon;
   phase: 1 | 2 | 3;
   component: LazyExoticComponent<ComponentType> | null;
+  /** Skeleton que se muestra mientras se descarga el módulo (no es lazy: es diminuto). */
+  skeleton?: ComponentType;
 }
 
 export const MODULES: LabModule[] = [
@@ -29,6 +33,7 @@ export const MODULES: LabModule[] = [
     icon: Workflow,
     phase: 1,
     component: lazy(() => import('./verifier/VerifierPage')),
+    skeleton: VerifierSkeleton,
   },
   {
     id: 'learn',
@@ -39,6 +44,7 @@ export const MODULES: LabModule[] = [
     icon: BookOpen,
     phase: 1,
     component: lazy(() => import('./learn/LearnRoutes')),
+    skeleton: LearnSkeleton,
   },
   {
     id: 'structures',
