@@ -3,9 +3,11 @@ import { expect, test } from '@playwright/test';
 test('ejemplo de deadlock → verificar → aparece la traza contraejemplo', async ({ page }) => {
   await page.goto('#/verificador?ejemplo=deadlock-clasico');
   await expect(page.getByTestId('example-select')).toHaveValue('deadlock-clasico');
-  await expect(page.locator('.monaco-editor')).toBeVisible();
+  // Antes de editar o verificar se muestra la vista previa liviana (sin Monaco).
+  await expect(page.getByTestId('editor-facade')).toContainText('a.lock();');
 
   await page.getByTestId('verify').click();
+  await expect(page.locator('.monaco-editor')).toBeVisible();
 
   const finding = page.getByTestId('finding-deadlock');
   await expect(finding).toBeVisible();
@@ -30,6 +32,7 @@ test('un programa correcto no reporta errores', async ({ page }) => {
 
 test('los errores de compilación indican línea y columna', async ({ page }) => {
   await page.goto('#/verificador?ejemplo=contador-race');
+  await page.getByTestId('editor-facade').click();
   await expect(page.locator('.monaco-editor')).toBeVisible();
   await page.locator('.monaco-editor .view-lines').click();
   await page.keyboard.press('ControlOrMeta+A');
