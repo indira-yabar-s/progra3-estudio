@@ -1,4 +1,4 @@
-import { Languages, Monitor, Moon, Sun } from 'lucide-react';
+import { Feather, Languages, Monitor, Moon, Sun } from 'lucide-react';
 import { useT } from '@/i18n';
 import { href, useRoute } from '@/lib/router';
 import { MODULES } from '@/modules/registry';
@@ -10,7 +10,7 @@ const NEXT_THEME: Record<ThemePref, ThemePref> = { system: 'dark', dark: 'light'
 export function Header() {
   const { t, locale } = useT();
   const route = useRoute();
-  const { theme, setTheme, setLocale } = useSettings();
+  const { theme, setTheme, setLocale, lite, setLite } = useSettings();
   const ThemeIcon = theme === 'dark' ? Moon : theme === 'light' ? Sun : Monitor;
   const themeLabel = t(
     theme === 'dark' ? 'theme.dark' : theme === 'light' ? 'theme.light' : 'theme.system',
@@ -20,7 +20,7 @@ export function Header() {
   return (
     <header className="no-print sticky top-0 z-30 px-3 pt-3 sm:px-5">
       <nav
-        className="glass glass-strong mx-auto flex max-w-[1600px] items-center gap-2 px-2 py-2 sm:gap-4 sm:px-3"
+        className="glass glass-strong glass-blur mx-auto flex max-w-[1600px] items-center gap-2 px-2 py-2 sm:gap-4 sm:px-3"
         aria-label="Telar"
       >
         <a href={href('/')} className="flex items-center gap-2 rounded-xl pr-2">
@@ -61,6 +61,17 @@ export function Header() {
           >
             <Languages size={16} aria-hidden="true" />
             {locale}
+          </button>
+          <button
+            type="button"
+            className={`btn btn-ghost btn-icon ${lite ? 'text-accent bg-accent/12' : ''}`}
+            onClick={() => setLite(!lite)}
+            aria-pressed={!!lite}
+            aria-label={t('lite.toggle')}
+            title={`${t('lite.toggle')}: ${lite ? t('lite.on') : t('lite.off')} — ${t('lite.hint')}`}
+            data-testid="lite-toggle"
+          >
+            <Feather size={16} aria-hidden="true" />
           </button>
           <button
             type="button"

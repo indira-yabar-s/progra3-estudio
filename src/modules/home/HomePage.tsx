@@ -3,6 +3,7 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { useT } from '@/i18n';
 import { href } from '@/lib/router';
 import { MODULES } from '@/modules/registry';
+import { HeroAurora } from './HeroAurora';
 import { HeroLoom } from './HeroLoom';
 
 export default function HomePage() {
@@ -15,7 +16,8 @@ export default function HomePage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 pt-8 pb-16 sm:pt-14">
-      <section className="grid items-center gap-10 lg:grid-cols-[1.1fr_1fr]">
+      <section className="relative isolate grid items-center gap-10 lg:grid-cols-[1.1fr_1fr]">
+        <HeroAurora />
         <div className="animate-fade-up">
           <p className="chip text-accent mb-5">{t('home.kicker')}</p>
           <h1 className="font-display text-4xl leading-[1.05] font-extrabold tracking-tight sm:text-6xl">

@@ -67,7 +67,7 @@ export function Player({
   const atEnd = step === last;
 
   return (
-    <div className="glass glass-strong sticky top-[84px] z-20 p-3" data-testid="player">
+    <div className="glass glass-strong glass-blur sticky top-[84px] z-20 p-3" data-testid="player">
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1">
           <IconBtn label={t('player.first')} onClick={() => setStep(-1)} disabled={step < 0}>

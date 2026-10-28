@@ -19,7 +19,7 @@ export function PwaToast() {
 
   return (
     <div role="status" className="no-print fixed right-4 bottom-4 z-50 max-w-sm animate-fade-up">
-      <div className="glass glass-strong flex items-center gap-3 p-3 pr-2">
+      <div className="glass glass-strong glass-blur flex items-center gap-3 p-3 pr-2">
         <WifiOff size={18} className="text-accent shrink-0" aria-hidden="true" />
         <p className="text-sm">{needRefresh ? t('offline.update') : t('offline.ready')}</p>
         {needRefresh && (
