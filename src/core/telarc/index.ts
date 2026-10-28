@@ -1,0 +1,13 @@
+export * from './ast';
+export * from './diagnostics';
+export { tokenize } from './lexer';
+export { parse } from './parser';
+export { compile, type CompiledProgram, type Instr } from './compiler';
+export { Machine, type MachineState, type StepEvent, type Transition } from './machine';
+export { explore, type ExploreOptions, type ExploreResult } from './explorer';
+export { replay, type Snapshot, type Trace, type TraceStep, type ThreadView } from './trace';
+export { buildWaitGraph, type WaitGraph, type WaitEdge, type BlockReason } from './waitGraph';
+export type { RaceReport, SyncEdge } from './happensBefore';
+export { toCpp, generateCpp } from './cppgen';
+export * from './verify';
+export * from './examples';
