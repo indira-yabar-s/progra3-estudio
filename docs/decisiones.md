@@ -100,6 +100,7 @@ plegado, hover, comentarios…) y el lenguaje C++; se configura `loader.config({
 lenguaje TelarC se define con Monarch y hay dos temas (claro/oscuro).
 **Consecuencias:** funciona offline. El chunk pesa ~3 MB (840 kB gzip) y se carga _lazy_ solo en el
 verificador; se subió el aviso de tamaño de chunk y el límite de precache del service worker.
+_Actualización (rendimiento):_ ahora se carga con el patrón _facade_ (ver D20).
 
 ### D13. Router propio por hash (`#/ruta`)
 
@@ -137,7 +138,8 @@ correctas se balancearon para que no estén siempre en la misma letra.
 `.dark`; utilidades `.glass`, `.glow-border`, `.text-gradient`. Fuentes autoalojadas con
 `@fontsource` (Bricolage Grotesque para títulos, Inter para texto, JetBrains Mono para código).
 **Consecuencias:** las fuentes funcionan offline (no Google Fonts). `prefers-reduced-motion`
-desactiva todas las animaciones, incluidas las manchas de luz del fondo.
+desactiva todas las animaciones, incluidas las luces del fondo.
+_Actualización (rendimiento):_ el vidrio ya no usa `backdrop-filter` en todas las tarjetas (ver D21).
 
 ### D18. Despliegue en GitHub Pages con GitHub Actions
 
@@ -156,6 +158,38 @@ renombra el repo, basta cambiar `BASE_PATH` (variable de entorno) o el valor por
 `vite.config.ts`.
 
 ---
+
+### D20. Monaco con patrón _facade_
+
+**Contexto:** el verificador tenía Lighthouse móvil 50–58, porque Monaco (~840 kB gzip) bloqueaba el
+hilo principal al entrar (TBT ~700–1 200 ms, LCP ~8 s).
+**Decisión:** al entrar se muestra el código real resaltado, con la misma fuente y alto de línea.
+Monaco se carga recién al hacer clic o escribir en el editor, o al pulsar Verificar. El Web Worker
+se crea recién al verificar.
+**Consecuencias:** Lighthouse 95–96 y peso inicial de 272 KiB. La primera interacción con el editor
+espera la carga de Monaco, que el service worker ya dejó en caché (casi instantánea después de la
+primera visita).
+
+### D21. Fondo y vidrio pensados para la GPU
+
+**Contexto:** con CPU 4× más lenta, la app iba a ~31 FPS **en reposo**. La causa eran las manchas
+con `filter: blur(80px)` animadas y el `backdrop-filter: blur(18px)` de ~40 tarjetas.
+**Decisión:** el fondo usa `radial-gradient` estáticos en su propia capa. Solo tres luces dentro del
+hero animan `transform`/`opacity`, y se pausan si el hero pasa bajo la cabecera o si la pestaña se
+oculta. El `backdrop-filter` (10 px) quedó solo en la cabecera, el reproductor fijo y el aviso de
+la PWA.
+**Consecuencias:** 60 FPS con 0% de frames lentos en todas las rutas. El aspecto se mantiene,
+porque sobre gradientes suaves el blur casi no se notaba. Detalle en
+[`rendimiento.md`](rendimiento.md).
+
+### D22. Modo ligero automático
+
+**Decisión:** el interruptor "Modo ligero" (sin blur ni luces animadas) se activa solo en la primera
+visita si `navigator.hardwareConcurrency <= 4` o `prefers-reduced-motion`. Se guarda en
+`localStorage` y se aplica antes de pintar.
+**Consecuencias:** los equipos modestos reciben la versión más liviana sin configurar nada. Un
+equipo de 4 núcleos rápido también entra en modo ligero, pero el usuario puede desactivarlo con un
+clic.
 
 ## Limitaciones conocidas
 

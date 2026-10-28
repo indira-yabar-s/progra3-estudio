@@ -12,6 +12,7 @@ y reprodúcelos paso a paso como en un telar.
 [**▶ Demo en vivo**](https://indira-yabar-s.github.io/progra3-estudio/) ·
 [Arquitectura](docs/arquitectura.md) ·
 [Decisiones](docs/decisiones.md) ·
+[Rendimiento](docs/rendimiento.md) ·
 [English](#english)
 
 [![CI](https://github.com/indira-yabar-s/progra3-estudio/actions/workflows/ci.yml/badge.svg)](https://github.com/indira-yabar-s/progra3-estudio/actions/workflows/ci.yml)
@@ -79,6 +80,9 @@ opción, hojas de repaso imprimibles y un simulacro con nota sobre 20.
 - ✨ **Diseño**: glassmorphism magenta/fucsia/violeta, modo claro/oscuro, responsive,
   micro-animaciones que respetan `prefers-reduced-motion`, interfaz en español e inglés.
 - 📴 **PWA instalable** que funciona **offline** (incluido Monaco y el verificador).
+- ⚡ **Rendimiento**: Lighthouse móvil **100** en la portada y **95–96** en el verificador; 60 FPS al
+  hacer scroll (incluso con CPU 4× más lenta), carga diferida de Monaco y **Modo ligero** automático
+  para equipos lentos. Detalles en [`docs/rendimiento.md`](docs/rendimiento.md).
 
 ## Cómo correrlo
 
@@ -102,6 +106,7 @@ Abre <http://localhost:5173>. Otros comandos:
 | `npm run test:coverage`           | Tests + cobertura del núcleo (umbral 80%)                  |
 | `npm run test:e2e`                | Tests end-to-end con Playwright (escritorio y celular)     |
 | `npm run lint` / `npm run format` | ESLint / Prettier                                          |
+| `npm run analyze`                 | Build + mapa del bundle en `stats/bundle.html`             |
 
 ## Stack
 
