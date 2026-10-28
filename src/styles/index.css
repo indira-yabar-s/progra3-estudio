@@ -1,0 +1,546 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ─────────────── Tokens de diseño ─────────────── */
+:root {
+  --bg: #fbf4ff;
+  --bg-2: #f3e6ff;
+  --fg: #2a0f3d;
+  --fg-muted: #6d5684;
+  --fg-subtle: #9a86ad;
+  --glass: rgb(255 255 255 / 0.58);
+  --glass-strong: rgb(255 255 255 / 0.78);
+  --glass-border: rgb(178 74 214 / 0.2);
+  --glass-highlight: rgb(255 255 255 / 0.9);
+  --accent: #d6189a;
+  --accent-2: #a21caf;
+  --accent-3: #7c3aed;
+  --accent-fg: #ffffff;
+  --ok: #059669;
+  --warn: #b45309;
+  --err: #e11d48;
+  --read: #0891b2;
+  --write: #c026d3;
+  --blob-1: #ff6fd8;
+  --blob-2: #b36bff;
+  --blob-3: #ff9ec7;
+  --blob-opacity: 0.35;
+  --shadow: 0 10px 40px -12px rgb(122 26 160 / 0.25);
+  --t0: #c026d3;
+  --t1: #7c3aed;
+  --t2: #0891b2;
+  --t3: #d97706;
+  --t4: #059669;
+  --t5: #e11d48;
+  color-scheme: light;
+}
+
+.dark {
+  --bg: #0c0517;
+  --bg-2: #160a2a;
+  --fg: #f7ecff;
+  --fg-muted: #bba6d4;
+  --fg-subtle: #7f6a99;
+  --glass: rgb(255 255 255 / 0.055);
+  --glass-strong: rgb(30 12 52 / 0.72);
+  --glass-border: rgb(240 140 255 / 0.18);
+  --glass-highlight: rgb(255 210 255 / 0.22);
+  --accent: #ff4fd8;
+  --accent-2: #e040fb;
+  --accent-3: #9b6bff;
+  --accent-fg: #1a0624;
+  --ok: #34d399;
+  --warn: #fbbf24;
+  --err: #fb7185;
+  --read: #22d3ee;
+  --write: #ff6ad5;
+  --blob-1: #d6189a;
+  --blob-2: #6d28d9;
+  --blob-3: #a21caf;
+  --blob-opacity: 0.42;
+  --shadow: 0 20px 60px -20px rgb(0 0 0 / 0.6);
+  --t0: #ff5ad9;
+  --t1: #a78bfa;
+  --t2: #22d3ee;
+  --t3: #fbbf24;
+  --t4: #34d399;
+  --t5: #fb7185;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-2: var(--bg-2);
+  --color-fg: var(--fg);
+  --color-muted: var(--fg-muted);
+  --color-subtle: var(--fg-subtle);
+  --color-glass: var(--glass);
+  --color-glass-strong: var(--glass-strong);
+  --color-line: var(--glass-border);
+  --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
+  --color-accent-3: var(--accent-3);
+  --color-accent-fg: var(--accent-fg);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-err: var(--err);
+  --color-read: var(--read);
+  --color-write: var(--write);
+  --font-display: 'Bricolage Grotesque Variable', 'Inter Variable', system-ui, sans-serif;
+  --font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, 'SFMono-Regular', monospace;
+}
+
+/* ─────────────── Base ─────────────── */
+html {
+  background: var(--bg);
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ─────────────── Componentes ─────────────── */
+@layer components {
+  /* Tarjeta de vidrio: fondo translúcido + blur + borde fino luminoso. */
+  .glass {
+    position: relative;
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: 1.25rem;
+    box-shadow:
+      var(--shadow),
+      inset 0 1px 0 0 var(--glass-highlight);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+  }
+
+  .glass-strong {
+    background: var(--glass-strong);
+  }
+
+  /* Borde luminoso con degradado (para elementos destacados). */
+  .glow-border {
+    position: relative;
+  }
+  .glow-border::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--accent) 70%, transparent),
+      transparent 40%,
+      color-mix(in srgb, var(--accent-3) 70%, transparent)
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  .text-gradient {
+    background: linear-gradient(
+      100deg,
+      var(--accent) 0%,
+      var(--accent-2) 45%,
+      var(--accent-3) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.85rem;
+    padding: 0.55rem 1rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    transition:
+      transform 160ms ease,
+      background-color 160ms ease,
+      box-shadow 200ms ease,
+      opacity 160ms ease;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .btn:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .btn-primary {
+    color: #fff;
+    background: linear-gradient(
+      120deg,
+      var(--accent) 0%,
+      var(--accent-2) 50%,
+      var(--accent-3) 100%
+    );
+    background-size: 160% 100%;
+    box-shadow: 0 8px 28px -10px color-mix(in srgb, var(--accent) 80%, transparent);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background-position: 100% 0;
+    box-shadow: 0 10px 34px -8px color-mix(in srgb, var(--accent) 90%, transparent);
+  }
+  .btn-ghost {
+    color: var(--fg);
+    background: transparent;
+    border: 1px solid var(--glass-border);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+  .btn-icon {
+    padding: 0.5rem;
+    border-radius: 0.75rem;
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border-radius: 999px;
+    padding: 0.15rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border: 1px solid var(--glass-border);
+    background: color-mix(in srgb, var(--glass) 60%, transparent);
+  }
+
+  .kbd {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    border: 1px solid var(--glass-border);
+    border-bottom-width: 2px;
+    border-radius: 0.35rem;
+    padding: 0 0.3rem;
+  }
+
+  .prose-telar p {
+    margin: 0.5rem 0;
+    line-height: 1.7;
+  }
+  .prose-telar code {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    padding: 0.1em 0.35em;
+    border-radius: 0.35rem;
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    color: var(--fg);
+  }
+  .prose-telar strong {
+    color: var(--fg);
+    font-weight: 700;
+  }
+  .prose-telar ul {
+    list-style: disc;
+    padding-left: 1.25rem;
+    margin: 0.5rem 0;
+  }
+  .prose-telar ol {
+    list-style: decimal;
+    padding-left: 1.25rem;
+    margin: 0.5rem 0;
+  }
+  .prose-telar li {
+    margin: 0.25rem 0;
+    line-height: 1.6;
+  }
+  .prose-telar h3 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.15rem;
+    margin: 1rem 0 0.25rem;
+  }
+}
+
+/* ─────────────── Fondo con manchas de luz ─────────────── */
+.aurora {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background: radial-gradient(ellipse at top, var(--bg-2), transparent 60%), var(--bg);
+}
+.aurora .blob {
+  position: absolute;
+  width: 46vmax;
+  height: 46vmax;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: var(--blob-opacity);
+  will-change: transform;
+}
+.aurora .b1 {
+  background: var(--blob-1);
+  top: -14vmax;
+  left: -10vmax;
+  animation: drift-1 38s ease-in-out infinite alternate;
+}
+.aurora .b2 {
+  background: var(--blob-2);
+  bottom: -18vmax;
+  right: -12vmax;
+  animation: drift-2 44s ease-in-out infinite alternate;
+}
+.aurora .b3 {
+  background: var(--blob-3);
+  top: 30%;
+  left: 40%;
+  width: 30vmax;
+  height: 30vmax;
+  opacity: calc(var(--blob-opacity) * 0.6);
+  animation: drift-3 52s ease-in-out infinite alternate;
+}
+/* Trama sutil de "telar" sobre el fondo */
+.aurora::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--fg) 4%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--fg) 3%, transparent) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse at center, #000 20%, transparent 75%);
+}
+
+@keyframes drift-1 {
+  to {
+    transform: translate(18vw, 12vh) scale(1.15);
+  }
+}
+@keyframes drift-2 {
+  to {
+    transform: translate(-16vw, -10vh) scale(1.1);
+  }
+}
+@keyframes drift-3 {
+  to {
+    transform: translate(-12vw, 14vh) scale(0.9);
+  }
+}
+
+/* ─────────────── Micro-animaciones ─────────────── */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes pop {
+  0% {
+    transform: scale(0.6);
+  }
+  60% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes dash {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+@keyframes pulse-ring {
+  0% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+}
+@keyframes shimmer {
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.animate-pop {
+  animation: pop 320ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.animate-dash {
+  animation: dash 900ms linear infinite;
+}
+.animate-pulse-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pulse-ring 1.6s ease-out infinite;
+}
+.progress-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgb(255 255 255 / 0.35) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+/* Respeta a quien prefiere menos movimiento. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .aurora .blob {
+    animation: none !important;
+  }
+}
+
+/* ─────────────── Monaco ─────────────── */
+.monaco-editor,
+.monaco-editor .margin,
+.monaco-editor-background {
+  background-color: transparent !important;
+}
+.telar-current-line {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border-left: 3px solid var(--accent);
+}
+.telar-error-line {
+  background: color-mix(in srgb, var(--err) 18%, transparent);
+}
+.telar-thread-glyph {
+  border-radius: 999px;
+  margin-left: 6px;
+  width: 8px !important;
+  height: 8px !important;
+  margin-top: 6px;
+}
+.telar-t0 {
+  background: var(--t0);
+}
+.telar-t1 {
+  background: var(--t1);
+}
+.telar-t2 {
+  background: var(--t2);
+}
+.telar-t3 {
+  background: var(--t3);
+}
+.telar-t4 {
+  background: var(--t4);
+}
+.telar-t5 {
+  background: var(--t5);
+}
+.telar-tline-0 {
+  background: color-mix(in srgb, var(--t0) 10%, transparent);
+}
+.telar-tline-1 {
+  background: color-mix(in srgb, var(--t1) 10%, transparent);
+}
+.telar-tline-2 {
+  background: color-mix(in srgb, var(--t2) 10%, transparent);
+}
+.telar-tline-3 {
+  background: color-mix(in srgb, var(--t3) 10%, transparent);
+}
+.telar-tline-4 {
+  background: color-mix(in srgb, var(--t4) 10%, transparent);
+}
+.telar-tline-5 {
+  background: color-mix(in srgb, var(--t5) 10%, transparent);
+}
+
+/* ─────────────── Impresión (hojas de repaso) ─────────────── */
+@media print {
+  .no-print,
+  .aurora {
+    display: none !important;
+  }
+  html,
+  body {
+    background: #fff !important;
+    color: #111 !important;
+  }
+  .glass {
+    background: #fff !important;
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+    backdrop-filter: none !important;
+  }
+  .print-page {
+    break-inside: avoid;
+  }
+  .text-gradient {
+    color: #6b21a8 !important;
+    background: none !important;
+  }
+}
+
+.telar-after {
+  font-style: italic;
+  font-size: 12px;
+  opacity: 0.9;
+}
+.telar-after-t0 {
+  color: var(--t0);
+}
+.telar-after-t1 {
+  color: var(--t1);
+}
+.telar-after-t2 {
+  color: var(--t2);
+}
+.telar-after-t3 {
+  color: var(--t3);
+}
+.telar-after-t4 {
+  color: var(--t4);
+}
+.telar-after-t5 {
+  color: var(--t5);
+}

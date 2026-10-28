@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#1a0b2e" />
+    <meta
+      name="description"
+      content="Telar: laboratorio visual de concurrencia. Explora todas las intercalaciones de hilos, encuentra data races y deadlocks, y aprende Programación III."
+    />
+    <title>Telar — laboratorio de concurrencia</title>
+    <script>
+      // Aplica el tema antes de pintar para evitar un destello.
+      (function () {
+        try {
+          var s = JSON.parse(localStorage.getItem('telar:settings') || '{}').state || {};
+          var theme = s.theme || 'system';
+          var dark =
+            theme === 'dark' ||
+            (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.classList.toggle('dark', dark);
+          if (s.locale) document.documentElement.lang = s.locale;
+        } catch (e) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>Telar necesita JavaScript para funcionar.</noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
