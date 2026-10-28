@@ -2,6 +2,7 @@ import { Suspense, useEffect } from 'react';
 import { Background } from '@/components/layout/Background';
 import { Header } from '@/components/layout/Header';
 import { PwaToast } from '@/components/layout/PwaToast';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import { useT } from '@/i18n';
 import { href, useRoute } from '@/lib/router';
 import HomePage from '@/modules/home/HomePage';
@@ -26,6 +27,19 @@ export default function App() {
     document.documentElement.lang = locale;
   }, [locale]);
 
+  const lite = useSettings((s) => s.lite);
+  useEffect(() => {
+    if (lite !== null) document.documentElement.classList.toggle('lite', lite);
+  }, [lite]);
+
+  // Pausa todas las animaciones CSS mientras la pestaña no está visible.
+  useEffect(() => {
+    const sync = () => document.documentElement.classList.toggle('tab-hidden', document.hidden);
+    sync();
+    document.addEventListener('visibilitychange', sync);
+    return () => document.removeEventListener('visibilitychange', sync);
+  }, []);
+
   useEffect(() => {
     window.scrollTo({ top: 0 });
   }, [route.path]);
@@ -33,6 +47,7 @@ export default function App() {
   const first = route.segments[0];
   const mod = first ? findModule(first) : null;
   const Page = mod?.component;
+  const Skeleton = mod?.skeleton;
 
   return (
     <>
@@ -52,7 +67,7 @@ export default function App() {
         {!first ? (
           <HomePage />
         ) : Page ? (
-          <Suspense fallback={<PageLoader />}>
+          <Suspense fallback={Skeleton ? <Skeleton /> : <PageSkeleton label={t('loading.page')} />}>
             <Page />
           </Suspense>
         ) : (
@@ -70,14 +85,6 @@ export default function App() {
       </footer>
       <PwaToast />
     </>
-  );
-}
-
-function PageLoader() {
-  return (
-    <div className="grid min-h-[50vh] place-items-center" role="status" aria-live="polite">
-      <div className="border-accent size-10 animate-spin rounded-full border-2 border-t-transparent" />
-    </div>
   );
 }
 

@@ -21,6 +21,13 @@
             theme === 'dark' ||
             (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
           document.documentElement.classList.toggle('dark', dark);
+          // Modo ligero: lo guardado o, en la primera visita, detección de equipo lento.
+          var lite =
+            typeof s.lite === 'boolean'
+              ? s.lite
+              : navigator.hardwareConcurrency <= 4 ||
+                window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          document.documentElement.classList.toggle('lite', lite);
           if (s.locale) document.documentElement.lang = s.locale;
         } catch (e) {
           document.documentElement.classList.add('dark');
