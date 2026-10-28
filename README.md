@@ -151,20 +151,6 @@ Detalle y teoría (intercalaciones, happens-before, relojes vectoriales, POR) en
   (BFS, DFS, Prim, Kruskal, Dijkstra, Floyd).
 - **Fase 3** Modo examen de todo el curso, patrones de diseño y landing page.
 
-## Lo que aprendí
-
-- **Concurrencia de verdad**: por qué `counter++` no es atómico, qué significa _happens-before_ y
-  por qué una race se puede detectar aunque los accesos no coincidan en el tiempo.
-- **Model checking**: modelar un programa como máquina de estados, explorar el espacio de estados
-  con DFS, evitar repeticiones con hashing y combatir la explosión de estados con **reducción de
-  orden parcial** (y medir cuánto ahorra).
-- **Compiladores**: escribir un lexer y un parser descendente recursivo con buenos mensajes de
-  error, chequeo de tipos y bajar un AST a instrucciones.
-- **Algoritmos de grafos aplicados**: detección de ciclos (deadlock), BFS para el contraejemplo
-  más corto, análisis de flujo de datos (_locksets_) y dibujo de árboles.
-- **Ingeniería de producto**: Web Workers para no congelar la UI, PWA offline, i18n tipada,
-  accesibilidad, diseño responsive, tests unitarios + e2e y CI/CD con despliegue automático.
-
 ## Despliegue
 
 Cada push a `main` corre el pipeline completo y publica `dist/` en GitHub Pages. La primera vez hay
