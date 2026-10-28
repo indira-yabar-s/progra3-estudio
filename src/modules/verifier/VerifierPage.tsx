@@ -27,6 +27,7 @@ import { StateTree } from './components/StateTree';
 import { SyncPanel } from './components/SyncPanel';
 import { WaitGraphView } from './components/WaitGraphView';
 import type { ThreadMarker } from './monaco/CodeEditor';
+import { EditorFallback } from './monaco/EditorFallback';
 import { errorStepOf, selectedFinding, selectedTrace, useVerifier, type ResultTab } from './store';
 
 const CodeEditor = lazy(() => import('./monaco/CodeEditor'));
@@ -44,6 +45,8 @@ export default function VerifierPage() {
   const route = useRoute();
   const s = useVerifier();
   const [showOptions, setShowOptions] = useState(false);
+  const [editorRequested, setEditorRequested] = useState(false);
+  const editorOn = editorRequested || s.status !== 'idle' || s.result !== null;
   const example = s.exampleId ? (findExample(s.exampleId) ?? null) : null;
   const edited = example ? example.source !== s.source : false;
 
@@ -182,20 +185,24 @@ export default function VerifierPage() {
           )}
 
           <div className="h-[46vh] min-h-[340px] xl:h-[calc(100dvh-300px)]" data-testid="editor">
-            <Suspense
-              fallback={<div className="text-muted grid h-full place-items-center text-sm">…</div>}
-            >
-              <CodeEditor
-                value={s.source}
-                onChange={s.setSource}
-                diagnostic={s.diagnostic}
-                threads={threadMarkers}
-                current={fresh ? (currentStep?.loc ?? null) : null}
-                errorLocs={fresh && finding && s.step === errorStep ? finding.locs : undefined}
-                onRun={s.verify}
-                ariaLabel={t('verifier.editorLabel')}
-              />
-            </Suspense>
+            {!editorOn ? (
+              // Vista previa liviana: Monaco (~840 kB gzip) solo se carga al editar o verificar.
+              <EditorFallback code={s.source} onActivate={() => setEditorRequested(true)} />
+            ) : (
+              <Suspense fallback={<EditorFallback code={s.source} />}>
+                <CodeEditor
+                  autoFocus={editorRequested}
+                  value={s.source}
+                  onChange={s.setSource}
+                  diagnostic={s.diagnostic}
+                  threads={threadMarkers}
+                  current={fresh ? (currentStep?.loc ?? null) : null}
+                  errorLocs={fresh && finding && s.step === errorStep ? finding.locs : undefined}
+                  onRun={s.verify}
+                  ariaLabel={t('verifier.editorLabel')}
+                />
+              </Suspense>
+            )}
           </div>
 
           <div className="border-line flex flex-wrap items-center gap-3 border-t p-3">

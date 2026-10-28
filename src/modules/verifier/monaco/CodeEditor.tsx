@@ -1,5 +1,5 @@
 import Editor, { type OnMount } from '@monaco-editor/react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Diagnostic, SourceLoc } from '@/core/telarc/diagnostics';
 import { useT } from '@/i18n';
 import { useIsDark } from '@/lib/useIsDark';
@@ -24,6 +24,8 @@ interface Props {
   /** Líneas implicadas en el error seleccionado. */
   errorLocs?: SourceLoc[];
   onRun?: () => void;
+  /** Enfocar el editor al montarse (cuando se activa desde la vista previa). */
+  autoFocus?: boolean;
   height?: string;
   ariaLabel: string;
 }
@@ -38,6 +40,7 @@ export default function CodeEditor({
   threads,
   errorLocs,
   onRun,
+  autoFocus,
   height = '100%',
   ariaLabel,
 }: Props) {
@@ -45,6 +48,7 @@ export default function CodeEditor({
   const dark = useIsDark();
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const decoRef = useRef<monaco.editor.IEditorDecorationsCollection | null>(null);
+  const [ready, setReady] = useState(false);
   const runRef = useRef(onRun);
   useEffect(() => {
     runRef.current = onRun;
@@ -54,6 +58,8 @@ export default function CodeEditor({
     editorRef.current = editor;
     decoRef.current = editor.createDecorationsCollection();
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => runRef.current?.());
+    if (autoFocus) editor.focus();
+    setReady(true);
   };
 
   // Marcadores de error de compilación (subrayado ondulado + mensaje al pasar el mouse).
@@ -73,7 +79,7 @@ export default function CodeEditor({
         ]
       : [];
     monaco.editor.setModelMarkers(model, 'telarc', markers);
-  }, [diagnostic, locale, value]);
+  }, [diagnostic, locale, value, ready]);
 
   // Decoraciones de la traza: línea de cada hilo, paso actual y líneas del error.
   useEffect(() => {
@@ -113,7 +119,7 @@ export default function CodeEditor({
       editorRef.current?.revealLineInCenterIfOutsideViewport(current.line);
     }
     decoRef.current?.set(deco);
-  }, [threads, current, errorLocs]);
+  }, [threads, current, errorLocs, ready]);
 
   return (
     <Editor
